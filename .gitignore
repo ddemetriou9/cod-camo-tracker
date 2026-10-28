@@ -1,0 +1,10 @@
+data/
+validation/
+catalog-source/
+node_modules/
+__pycache__/
+*.zip
+MW4-Manual-Tracker.html
+*.log
+.env
+.env.*
