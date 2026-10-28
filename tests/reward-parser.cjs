@@ -20,3 +20,16 @@ const sparse=overviewReadingFromLines([{text:'CAMO SELECT',confidence:94},{text:
 assert.equal(parseOverview(sparse,catalog).entries.length,2);
 assert.equal(parseOverview(overviewReadingFromLines([{text:'KILL CONFIRMED',confidence:99},{text:'MILITARY [8/8]',confidence:99}]),catalog),null);
 console.log('PASS: sparse full-frame reading merges labelled counters, ignores decoration, and still requires the camo menu and known weapon.');
+
+const {overviewIssue}=require('../web/reward-parser.js');
+const clearOverview={header:'CAMO SELECT\nHAN 86 PROGRESSION',confidence:90,categories:[{text:'MILITARY [8/8]',confidence:90}]};
+assert.equal(overviewIssue(clearOverview,catalog),'');
+assert.match(overviewIssue({...clearOverview,header:'HAN 86 PROGRESSION'},catalog),/title/);
+assert.match(overviewIssue({...clearOverview,header:'CAMO SELECT\nUNKNOWN PROGRESSION'},catalog),/heading/);
+assert.match(overviewIssue({...clearOverview,confidence:42},catalog),/42%/);
+assert.match(overviewIssue({...clearOverview,categories:[]},catalog),/category total/);
+console.log('PASS: rejected overview explains the missing title, weapon heading, confidence or category total.');
+
+assert.equal(overview({header:'CAM0 SELECT\nHAN 86 PR0GRESSI0N'}).weapon,'Han 86');
+assert.equal(parseOverview(overviewReadingFromLines([{text:'CAM0 SELECT',confidence:95},{text:'AXI0N PR0GRESSI0N',confidence:92},{text:'MILITARY [8/8]',confidence:90}]),catalog).weapon,'Axion');
+console.log('PASS: common zero/letter-O OCR confusion in menu labels preserves exact known-weapon matching.');

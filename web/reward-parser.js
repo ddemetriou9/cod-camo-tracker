@@ -22,9 +22,9 @@
   const c=camos[0];return {id:c.id,weapon:w.name,name:c.name,slot:c.slot,military:false};
  }
  function parseOverview({header,categories,confidence=0},catalog){
-  if(confidence<60||!key(header).includes('CAMOSELECT'))return null;
+  if(confidence<60||!key(header).replace(/0/g,'O').includes('CAMOSELECT'))return null;
   const headings=String(header||'').split(/[\r\n]+/).map(line=>{
-   const compact=key(line);return compact.endsWith('PROGRESSION')?weaponKey(compact.slice(0,-11)).replace(/1/g,'I'):null;
+   const compact=key(line);return compact.replace(/0/g,'O').endsWith('PROGRESSION')?weaponKey(compact.slice(0,-11)).replace(/1/g,'I'):null;
   }).filter(Boolean);
   const weapons=catalog.weapons.filter(w=>headings.includes(weaponKey(w.name).replace(/1/g,'I')));
   if(weapons.length!==1)return null;
@@ -42,7 +42,7 @@
   return unique.length?{weapon:weapons[0].name,entries:unique,signature:weapons[0].id+'|'+unique.map(e=>e.category+':'+e.current+'/'+e.target).sort().join('|')}:null;
  }
  function overviewReadingFromLines(lines){
-  const relevant=lines.filter(line=>key(line.text).includes('CAMOSELECT')||key(line.text).endsWith('PROGRESSION')||line.role==='weapon');
+  const relevant=lines.filter(line=>key(line.text).replace(/0/g,'O').includes('CAMOSELECT')||key(line.text).replace(/0/g,'O').endsWith('PROGRESSION')||line.role==='weapon');
   const header=(relevant.length?relevant:lines.slice(0,8)).map(line=>line.text).join('\n'),categories=[];
   for(let i=0;i<lines.length;i++){
    let text=String(lines[i].text||'').trim().toUpperCase(),confidence=lines[i].confidence||0;
@@ -53,6 +53,16 @@
   }
   return {header,categories,confidence:relevant.length?Math.min(...relevant.map(line=>line.confidence||0)):0};
  }
- const api={parse,parseOverview,overviewReadingFromLines,normal,key};
+ function overviewIssue(reading,catalog){
+  if(!key(reading.header).replace(/0/g,'O').includes('CAMOSELECT'))return 'Could not read the Camo Select title.';
+  const headings=String(reading.header||'').split(/[\r\n]+/).map(line=>{const compact=key(line);return compact.replace(/0/g,'O').endsWith('PROGRESSION')?weaponKey(compact.slice(0,-11)).replace(/1/g,'I'):null;}).filter(Boolean);
+  const weapons=catalog.weapons.filter(w=>headings.includes(weaponKey(w.name).replace(/1/g,'I')));
+  if(!weapons.length)return 'Could not match the weapon progression heading to a known weapon.';
+  if(weapons.length!==1)return 'More than one weapon progression heading was read.';
+  if(!(reading.confidence>=60))return weapons[0].name+': title/weapon confidence was '+Math.round(reading.confidence||0)+'%; at least 60% is needed.';
+  if(!parseOverview(reading,catalog))return weapons[0].name+': no unambiguous labelled category total passed the reading checks.';
+  return '';
+ }
+ const api={parse,parseOverview,overviewReadingFromLines,overviewIssue,normal,key};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoRewardParser=api;
 })(typeof window==='object'?window:globalThis);

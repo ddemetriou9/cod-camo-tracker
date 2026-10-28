@@ -29,13 +29,20 @@ const server=http.createServer((req,res)=>{
   await page.waitForFunction(()=>document.querySelector('#browser-stats').textContent.includes('OCR asleep'),null,{timeout:20000});
   assert.match(await page.locator('#browser-stats').textContent(),/0 OCR reads/);
   assert.equal(await page.evaluate(()=>mockCapture.options.audio),false);assert.equal(await page.evaluate(()=>mockCapture.options.video.frameRate.max),1);
+  await page.locator('#browser-scan').click();
+  await page.waitForFunction(()=>document.querySelector('#browser-screen-scan').textContent.includes('Could not read the Camo Select title.'),null,{timeout:20000});
+  const failedScan=await page.locator('#browser-screen-scan').textContent();
+  await page.waitForTimeout(2200);
+  assert.equal(await page.locator('#browser-screen-scan').textContent(),failedScan,'Routine checks must preserve the failed screen scan');
+  assert.equal(await page.evaluate(()=>TrackerTest.count('Han 86')),0);
   await page.evaluate(()=>mockCapture.showReward());await page.waitForTimeout(1800);
   assert.equal(await page.evaluate(()=>TrackerTest.count('Han 86')),0,'The offset fixture deliberately misses the normal layout gate');
-  await page.locator('#browser-diagnostics > summary').click();
+  assert.equal(await page.locator('#browser-diagnostics').evaluate(el=>el.open),true,'Scan must reveal its diagnostic report automatically');
   await page.waitForFunction(()=>document.querySelector('#browser-capture-info').textContent.includes('1920'));
   assert(await page.evaluate(()=>{const c=document.querySelector('#browser-preview'),p=c.getContext('2d').getImageData(0,0,c.width,c.height).data;return p.some((v,i)=>i%4!==3&&v>50);}), 'Preview must show actual shared pixels');
   await page.locator('#browser-scan').click();
   await page.waitForFunction(({weapon,total})=>TrackerTest.count(weapon)===total,{weapon,total},{timeout:20000});
+  assert.match(await page.locator('#browser-screen-scan').textContent(),/Han 86 overview saved/);
   assert.match(await page.locator('#browser-recent').textContent(),overviewMode?/Han 86.*Overview/:/PILA.*Military 6/);
   if(overviewMode){assert.equal(await page.evaluate(()=>state.categoryTotals['HAN 86|COMPLETIONIST'].current),1);assert.equal(await page.evaluate(()=>done('Han 86',11)),false,'Partial completionist counts must not guess a Gold unlock');}
   await page.locator('#info-dialog .close-dialog').click();await page.locator('#search').fill(weapon);
