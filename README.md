@@ -12,15 +12,21 @@ Progress is stored in this browser's localStorage; pictures you deliberately add
 
 ## Automatic tracking
 
-This published version supports manual tracking. Browser-only detection of after-match camo reward cards is planned and is not enabled in this version.
+The website also offers browser-only after-match recognition. Click **Tracker > Start tracking**, select the Call of Duty game window, and leave the tab open. Desktop Edge or Chrome over HTTPS is recommended. Permission is requested every session; no Windows installation is needed.
 
-The existing optional Windows companion is included in the source download. Extract the repository ZIP and double-click Open-Automatic-Tracker.cmd. It opens a separate local interface and uses built-in Windows OCR. Click Tracker > Start tracker to enable it. The hosted website does not connect to the companion. See [local tracker instructions](LOCAL-TRACKER.md) for capture behavior and limitations.
+The low-impact mode requests one capture frame per second and probes a small banner region every two seconds. Potential results screens trigger cropped OCR in one local worker. After about 15 seconds without a confirmed results banner, the worker unloads to save memory; it wakes on the next candidate. Confirmed Military rewards complete their sequential prefix; named camo rewards must match that weapon's catalogue. XP, attachment cards and level/unlock totals never imply camo completion. No screenshots, raw readings or video are saved or uploaded. Only recognised unlock records are saved in your browser.
+
+Start before a match so the local recognition engine is ready. First start downloads pinned OCR assets from this website; later starts use browser caching. Leave the results cards visible for two checks. Fast animations, poor capture quality, background throttling and unsupported layouts can cause missed rewards. Initial support targets the supplied 16:9 results layout. This does not recover existing unlocks or partial challenge counters; manual controls remain available. Stop tracking releases sharing and the OCR worker. Screen sharing and OCR still use resources; performance on a low-end gaming PC needs real-match testing.
+
+The existing optional Windows companion is included in the source download. Extract the repository ZIP and double-click Open-Automatic-Tracker.cmd. It opens a separate local interface and uses built-in Windows OCR for camo menus. Click Tracker > Start tracker to enable it. The hosted website does not connect to the companion. See [local tracker instructions](LOCAL-TRACKER.md) for that mode's capture behavior and limitations.
 
 ## Develop and deploy
 
 The website lives in web/. Open web/index.html directly or serve that folder with any static HTTP server. There are no npm dependencies or build steps. GitHub Actions deploys only web/ to GitHub Pages when main changes.
 
 Build-Single-HTML.py produces a standalone manual HTML file with embedded graphics. Build-Web-Package.py produces a clean ZIP with the optional companion. Neither public builder imports personal progress.
+
+Browser OCR uses vendored Tesseract.js 6.0.1, Tesseract.js-core 6.0.0 and pinned tessdata_fast English data. Their licences, source URLs and SHA-256 checksums are in web/vendor/ocr/. Run tools/vendor-ocr.py to reproduce those assets. No runtime CDN is used. Parser checks run with `node tests/reward-parser.cjs`.
 
 ## Catalogue and artwork
 

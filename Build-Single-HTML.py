@@ -7,6 +7,8 @@ import re
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / 'web'
 html = (WEB / 'index.html').read_text(encoding='utf-8-sig')
+for name in ('reward-parser.js', 'browser-capture.js', 'browser-tracker-ui.js'):
+    html = html.replace(f'<script src="{name}"></script>', '')
 
 # Inline the stylesheet, data and assets. Each picture is encoded just once;
 # weapon thumbnails and library items refer to the same embedded data URL.

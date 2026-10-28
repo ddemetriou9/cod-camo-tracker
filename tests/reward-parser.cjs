@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {parse}=require('../web/reward-parser.js');
+const catalog=require('../web/catalog.json');
+const read=(changes={})=>parse({header:'TOP PERFORMING WEAPONS',weapon:'PILA',reward:'MILITARY CAMO 6\nCAMO',confidence:90,...changes},catalog);
+assert.equal(read().slot,5);
+assert.equal(read({reward:'MILITARY CAMO 6'}).slot,5,'Explicit Military reward name identifies a camo');
+for(const changes of [{header:'Kill confirmed'}, {weapon:'PILA\nODEN'}, {weapon:'PILA X'}, {reward:'MILITARY CAMO 9\nCAMO'}, {confidence:69}, {weapon:'ODEN',reward:'SCHLAGER VISIV-5\nLASER'}, {reward:'UNLOCKS 39/64'}, {reward:'LEVEL 30/46'}])assert.equal(read(changes),null,JSON.stringify(changes));
+const special=catalog.challenges.find(c=>c.weapon==='Axion'&&c.slot===8);
+assert.equal(read({weapon:'AXI0N',reward:special.name+'\nCAMO'}).id,special.id);
+assert.equal(read({weapon:'PILA',reward:special.name+'\nCAMO'}),null);
+console.log('PASS: Military reward, exact weapon/name matching, attachments and level totals rejected, ambiguity and confidence gates.');
