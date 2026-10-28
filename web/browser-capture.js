@@ -38,6 +38,24 @@
   for(const name of ['military','special','completionist','prestige']){const {data}=await worker.recognize(crops[name]);categories.push({text:data.text,confidence:data.confidence||0});}
   return {header:title.text+'\n'+weapon.text,categories,confidence:Math.min(title.confidence||0,weapon.confidence||0)};
  }
+ async function readWideOverview(canvas,worker){
+  await worker.setParameters({tessedit_pageseg_mode:'11'});
+  try{
+   const {data}=await worker.recognize(canvas,{}, {text:true,blocks:true});
+   const rawLines=(data.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>paragraph.lines||[]));
+   const lines=rawLines.map(line=>({text:line.text,confidence:line.confidence??data.confidence}));
+   const title=rawLines.find(line=>root.CamoRewardParser.key(line.text).includes('CAMOSELECT'));
+   if(title&&!lines.some(line=>root.CamoRewardParser.key(line.text).endsWith('PROGRESSION'))){
+    const words=(title.words||[]).filter(word=>['CAMO','SELECT'].includes(root.CamoRewardParser.normal(word.text))),boxes=words.length?words.map(word=>word.bbox):[title.bbox];
+    const box={x0:Math.min(...boxes.map(b=>b.x0)),y0:Math.min(...boxes.map(b=>b.y0)),x1:Math.max(...boxes.map(b=>b.x1)),y1:Math.max(...boxes.map(b=>b.y1))},tw=box.x1-box.x0,th=box.y1-box.y0;
+    const region=[Math.max(0,box.x0-tw*.08)/canvas.width,(box.y0+th*1.55)/canvas.height,Math.min(tw*1.3,canvas.width-box.x0)/canvas.width,th*1.3/canvas.height];
+    await worker.setParameters({tessedit_pageseg_mode:'7'});
+    const focused=(await worker.recognize(prepare(crop(canvas,region,750),false))).data;
+    lines.push({text:focused.text,confidence:focused.confidence,role:'weapon'});
+   }
+   return root.CamoRewardParser.overviewReadingFromLines(lines.length?lines:data.text.split(/[\r\n]+/).filter(Boolean).map(text=>({text,confidence:data.confidence})));
+  }finally{await worker.setParameters({tessedit_pageseg_mode:'6'});}
+ }
  async function readCrops(crops,worker){
   const texts={},confidences=[];
   for(const name of ['header','weapon','reward']){
@@ -63,15 +81,16 @@
   await worker.setParameters({tessedit_pageseg_mode:'6',user_defined_dpi:'150'});return worker;
  }
  function create({catalog,onReward,onOverview=()=>{},onStatus}){
-  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0,burstUntil=0,burstDeadline=0,requestedRate=1,rateAttempt=0,rateAttemptAt=0;
-  const status={phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false,captureFPS:1};
+  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0,burstUntil=0,burstDeadline=0,requestedRate=1,rateAttempt=0,rateAttemptAt=0,busyRun=0,forceScans=0,forceBudget=0;
+  let pendingCategories=new Map();
+  const status={build:'2026-10-29-diagnostics-1',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false,captureFPS:1,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',confirmed:0,saved:0};
   function report(phase,message){Object.assign(status,{phase,message});onStatus({...status});}
   function release(){
    clearTimeout(timer);timer=null;
    if(stream){for(const track of stream.getTracks()){track.onended=null;track.stop();}stream=null;}
    if(video){video.pause();video.srcObject=null;video.remove();video=null;}
    if(worker){worker.terminate().catch(()=>{});worker=null;}
-   cache=null;pending=null;blockedUntil=0;burstUntil=0;burstDeadline=0;requestedRate=1;rateAttempt=0;rateAttemptAt=0;status.captureFPS=1;status.ocrLoaded=false;
+   cache=null;pending=null;pendingCategories.clear();forceScans=0;forceBudget=0;blockedUntil=0;burstUntil=0;burstDeadline=0;requestedRate=1;rateAttempt=0;rateAttemptAt=0;status.captureFPS=1;status.ocrLoaded=false;
   }
   async function setCaptureRate(fps,run){
    if(requestedRate===fps)return;
@@ -89,25 +108,27 @@
   function confirm(reading,frameHash){
    const reward=root.CamoRewardParser.parse(reading,catalog);
    if(!reward){pending=null;return null;}
-   if(pending?.id===reward.id){if(performance.now()-pending.at>=200){pending=null;onReward(reward);return reward;}return null;}
+   if(pending?.id===reward.id){if(performance.now()-pending.at>=200){pending=null;status.confirmed++;const result=onReward(reward);if(result==='saved')status.saved++;return {...reward,applyResult:result};}return null;}
    pending={id:reward.id,at:performance.now(),frameHash};return null;
   }
   async function scan(run){
-   if(run!==generation||!status.running)return;
+   if(run!==generation||!status.running||busyRun===run)return;
+   busyRun=run;
    let delay=1000;
    try{
     if(!video||video.readyState<2||!video.videoWidth){pending=null;report('waiting','Waiting for a visible game window.');return;}
     status.checks++;
-    const mode=menuCandidate(video)?'menu':bannerCandidate(video)?'reward':null;
+    status.width=video.videoWidth;status.height=video.videoHeight;status.frames=video.getVideoPlaybackQuality?.().totalVideoFrames||0;
+    const mode=forceScans>0&&forceBudget>0?'wide':menuCandidate(video)?'menu':bannerCandidate(video)?'reward':null;
     if(!mode){
-     pending=null;cache=null;
+     pending=null;pendingCategories.clear();cache=null;
      if(performance.now()<burstUntil){delay=250;report('watching','Results are transitioning. Watching for the next weapon card…');return;}
      burstDeadline=0;await setCaptureRate(1,run);if(run!==generation)return;
      report('watching','Waiting for a camo overview or after-match rewards. Small checks every second; OCR idle.');return;
     }
-    if(performance.now()<blockedUntil&&cache?.mode===mode)return;
+    if(mode!=='wide'&&performance.now()<blockedUntil&&cache?.mode===mode)return;
     delay=mode==='reward'?250:1000;
-    const crops=mode==='menu'?overviewCrops(video):frameCrops(video),frameHash=mode+Object.values(crops).map(hash).join(':');
+    const crops=mode==='wide'?{screen:crop(video,[0,0,1,1],Math.min(1920,Math.round(Math.sqrt(2200000*video.videoWidth/video.videoHeight))))}:mode==='menu'?overviewCrops(video):frameCrops(video),frameHash=mode+Object.values(crops).map(hash).join(':');
     if(mode==='reward'){
      if(!burstDeadline)burstDeadline=performance.now()+90000;
      burstUntil=Math.min(burstDeadline,performance.now()+4000);
@@ -123,17 +144,23 @@
     let reading;
     if(cache?.hash===frameHash)reading=cache.reading;
     else{
-     report('reading',mode==='menu'?'Camo overview found. Reading the weapon and category totals…':'Results candidate found. Reading the weapon and centre reward card…');
-     const start=performance.now();reading=mode==='menu'?await readOverviewCrops(crops,worker):await readCrops(crops,worker);
+     report('reading',mode==='wide'?'Checking the visible screen. This one-off scan bypasses layout detection…':mode==='menu'?'Camo overview found. Reading the weapon and category totals…':'Results candidate found. Reading the weapon and centre reward card…');
+     const start=performance.now();reading=mode==='wide'?await readWideOverview(crops.screen,worker):mode==='menu'?await readOverviewCrops(crops,worker):await readCrops(crops,worker);
      if(run!==generation)return;
      status.reads++;status.lastReadMs=Math.round(performance.now()-start);cache={hash:frameHash,reading,mode};
+     status.lastReading=(mode==='reward'?['Header: '+reading.header,'Weapon: '+reading.weapon,'Reward: '+reading.reward,'Confidence: '+reading.confidence].join('\n'):[reading.header,...reading.categories.map(r=>r.text+' ('+Math.round(r.confidence)+'%)'),'Header confidence: '+Math.round(reading.confidence)+'%'].join('\n')).slice(0,1600);
     }
-    if(mode==='menu'){
+    if(mode==='menu'||mode==='wide'){
+     if(mode==='wide'){forceScans--;forceBudget--;}
      const overview=root.CamoRewardParser.parseOverview(reading,catalog);
-     if(!overview){pending=null;blockedUntil=performance.now()+8000;report('watching','Possible camo overview: waiting for a readable weapon progression header and category totals.');return;}
+     if(!overview){pending=null;pendingCategories.clear();blockedUntil=performance.now()+8000;if(mode==='wide')forceScans=0;report('watching',mode==='wide'?'Screen check could not read a known weapon camo overview. Check the local preview and last reading below.':'Possible camo overview: waiting for a readable weapon progression header and category totals.');return;}
      resultsSeenAt=performance.now();
-     if(pending?.id==='menu:'+overview.signature&&performance.now()-pending.at>=500){pending=null;onOverview(overview);report('watching',overview.weapon+' overview scanned: '+overview.entries.map(e=>e.category.toLowerCase()+' '+e.current+'/'+e.target).join(' · ')+'. Open the next weapon to continue.');}
-     else{pending={id:'menu:'+overview.signature,at:performance.now()};report('confirming',overview.weapon+' camo totals detected. Keep this screen visible for one more check…');}
+     const now=performance.now(),confirmed=[],next=new Map();
+     for(const entry of overview.entries){const key=entry.weapon+'|'+entry.category+'|'+entry.current+'/'+entry.target,previous=pendingCategories.get(key);if(previous&&now-previous.at>=500)confirmed.push(entry);next.set(key,previous||{at:now});}
+     pendingCategories=next;
+     if(mode==='wide'&&confirmed.length<overview.entries.length&&forceBudget>0)forceScans=Math.max(forceScans,1);
+     if(confirmed.length){status.confirmed++;const result=onOverview({...overview,entries:confirmed});if(result==='saved')status.saved++;report('watching',overview.weapon+' overview '+(result==='failed'?'could not be saved':result==='already-recorded'?'already recorded; manual corrections preserved':'saved')+': '+confirmed.map(e=>e.category.toLowerCase()+' '+e.current+'/'+e.target).join(' · ')+'.');}
+     else{report('confirming',overview.weapon+' camo totals detected. Keep this screen visible for one more check…');}
      return;
     }
     if(!root.CamoRewardParser.key(reading.header).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS')){
@@ -141,7 +168,7 @@
     }
     resultsSeenAt=performance.now();
     const reward=confirm(reading,frameHash);
-    if(reward)report('watching',reward.weapon+' — '+reward.name+' recognised. Progress saved automatically.');
+    if(reward)report('watching',reward.weapon+' — '+reward.name+(reward.applyResult==='failed'?' could not be saved. Check browser storage.':reward.applyResult==='already-recorded'?' was already recorded; manual corrections preserved.':' recognised. Progress saved automatically.'));
     else if(pending)report('confirming','Camo reward detected. Checking that the card is stable…');
     else report('watching','Results visible. Waiting for a readable camo reward; attachment and level totals are ignored.');
    }catch(error){if(run===generation){stop();report('error','Recognition stopped: '+error.message+' Try Start tracking again.');}}
@@ -150,12 +177,13 @@
      const retiring=worker;worker=null;status.ocrLoaded=false;cache=null;await retiring.terminate().catch(()=>{});
      if(run===generation)report('watching','Waiting for camo menus or after-match rewards. OCR unloaded to save memory; small banner checks continue.');
     }
+    if(busyRun===run)busyRun=0;
     if(run===generation&&status.running)timer=setTimeout(()=>scan(run),delay);
    }
   }
   async function start(){
    if(status.running)return;
-   const run=++generation;release();status.running=true;status.checks=0;status.reads=0;status.lastReadMs=0;
+   const run=++generation;release();status.running=true;status.checks=0;status.reads=0;status.lastReadMs=0;status.confirmed=0;status.saved=0;status.lastReading='No OCR reading yet.';
    report('starting','Choose the Call of Duty game window in the browser sharing dialog.');
    try{
     if(location.protocol==='file:'||!isSecureContext||!navigator.mediaDevices?.getDisplayMedia)throw Error('Open the hosted HTTPS tracker in desktop Edge or Chrome for screen sharing. Manual tracking still works.');
@@ -185,7 +213,9 @@
     report('error',error.name==='NotAllowedError'?'Screen sharing was cancelled or blocked. Click Start tracking to try again.':error.message);
    }
   }
-  return {start,stop,getStatus:()=>({...status})};
+  function checkNow(){if(!status.running||['starting','loading'].includes(status.phase))return;forceScans=2;forceBudget=3;blockedUntil=0;cache=null;pendingCategories.clear();if(busyRun!==generation){clearTimeout(timer);scan(generation);}}
+  function drawPreview(canvas){if(!video||video.readyState<2)return false;canvas.width=480;canvas.height=Math.max(1,Math.round(480*video.videoHeight/video.videoWidth));canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);return true;}
+  return {start,stop,checkNow,drawPreview,getStatus:()=>({...status})};
  }
- root.BrowserCamoCapture={create,createOCR,crop,bannerCandidate,menuCandidate,frameCrops,readCrops,overviewCrops,readOverviewCrops,REGIONS,MENU_REGIONS};
+ root.BrowserCamoCapture={create,createOCR,crop,bannerCandidate,menuCandidate,frameCrops,readCrops,overviewCrops,readOverviewCrops,readWideOverview,REGIONS,MENU_REGIONS};
 })(window);

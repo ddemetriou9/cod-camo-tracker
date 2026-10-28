@@ -41,6 +41,18 @@
   const unique=entries.filter(entry=>entries.filter(other=>other.category===entry.category).length===1);
   return unique.length?{weapon:weapons[0].name,entries:unique,signature:weapons[0].id+'|'+unique.map(e=>e.category+':'+e.current+'/'+e.target).sort().join('|')}:null;
  }
- const api={parse,parseOverview,normal,key};
+ function overviewReadingFromLines(lines){
+  const relevant=lines.filter(line=>key(line.text).includes('CAMOSELECT')||key(line.text).endsWith('PROGRESSION')||line.role==='weapon');
+  const header=(relevant.length?relevant:lines.slice(0,8)).map(line=>line.text).join('\n'),categories=[];
+  for(let i=0;i<lines.length;i++){
+   let text=String(lines[i].text||'').trim().toUpperCase(),confidence=lines[i].confidence||0;
+   if(/^(MILITARY|SPECIAL|COMPLETIONIST|PRESTIGE)$/.test(text)&&lines[i+1]){text+=' '+lines[i+1].text;confidence=Math.min(confidence,lines[i+1].confidence||0);}
+   text=text.replace(/[OØ](?=\s*\/)/g,'0').replace(/\|/g,' ');
+   const match=/^(MILITARY|SPECIAL|COMPLETIONIST|PRESTIGE)\s*[\[(]?\s*\d{1,2}\s*\/\s*\d{1,2}\s*[\])]?/.exec(text);
+   if(match)categories.push({text:match[0].trim(),confidence});
+  }
+  return {header,categories,confidence:relevant.length?Math.min(...relevant.map(line=>line.confidence||0)):0};
+ }
+ const api={parse,parseOverview,overviewReadingFromLines,normal,key};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoRewardParser=api;
 })(typeof window==='object'?window:globalThis);

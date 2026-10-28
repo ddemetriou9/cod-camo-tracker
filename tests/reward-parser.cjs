@@ -15,3 +15,8 @@ assert.equal(overview().weapon,'Han 86');assert.equal(overview().entries.length,
 for(const changes of [{header:'AFTER ACTION\nHAN 86 PROGRESSION'}, {header:'CAMO SELECT\nUNKNOWN PROGRESSION'}, {header:'CAMO SELECT\nHAN 86 PROGRESSION\nM4 PROGRESSION'},{confidence:59},{categories:[{text:'SPECIAL [4/3]',confidence:90}]}])assert.equal(overview(changes),null);
 assert.equal(overview({categories:[{text:'MILITARY [2/8]',confidence:90},{text:'MILITARY [3/8]',confidence:90}]}),null);
 console.log('PASS: camo overview gate, unique progression heading, valid category totals, OCR slashed zero, ambiguity rejected.');
+const {overviewReadingFromLines}=require('../web/reward-parser.js');
+const sparse=overviewReadingFromLines([{text:'CAMO SELECT',confidence:94},{text:'HAN 86 PROGRESSION',confidence:93},{text:'MILITARY',confidence:95},{text:'[8/8]',confidence:91},{text:'SPECIAL [3/3] _',confidence:85}]);
+assert.equal(parseOverview(sparse,catalog).entries.length,2);
+assert.equal(parseOverview(overviewReadingFromLines([{text:'KILL CONFIRMED',confidence:99},{text:'MILITARY [8/8]',confidence:99}]),catalog),null);
+console.log('PASS: sparse full-frame reading merges labelled counters, ignores decoration, and still requires the camo menu and known weapon.');
