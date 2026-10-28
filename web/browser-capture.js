@@ -63,15 +63,25 @@
   await worker.setParameters({tessedit_pageseg_mode:'6',user_defined_dpi:'150'});return worker;
  }
  function create({catalog,onReward,onOverview=()=>{},onStatus}){
-  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0;
-  const status={phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false};
+  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0,burstUntil=0,burstDeadline=0,requestedRate=1,rateAttempt=0,rateAttemptAt=0;
+  const status={phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false,captureFPS:1};
   function report(phase,message){Object.assign(status,{phase,message});onStatus({...status});}
   function release(){
    clearTimeout(timer);timer=null;
    if(stream){for(const track of stream.getTracks()){track.onended=null;track.stop();}stream=null;}
    if(video){video.pause();video.srcObject=null;video.remove();video=null;}
    if(worker){worker.terminate().catch(()=>{});worker=null;}
-   cache=null;pending=null;blockedUntil=0;status.ocrLoaded=false;
+   cache=null;pending=null;blockedUntil=0;burstUntil=0;burstDeadline=0;requestedRate=1;rateAttempt=0;rateAttemptAt=0;status.captureFPS=1;status.ocrLoaded=false;
+  }
+  async function setCaptureRate(fps,run){
+   if(requestedRate===fps)return;
+   const track=stream?.getVideoTracks()[0];if(!track)return;
+   if(rateAttempt===fps&&performance.now()-rateAttemptAt<5000)return;
+   rateAttempt=fps;rateAttemptAt=performance.now();
+   try{
+    await track.applyConstraints({...track.getConstraints(),frameRate:{ideal:fps,max:fps},width:{ideal:1920,max:1920}});
+    if(run===generation){requestedRate=fps;status.captureFPS=Math.round((track.getSettings().frameRate||fps)*10)/10;}
+   }catch(error){/* Keep the available rate if this capture source cannot change it. */}
   }
   function stop(message='Screen sharing and recognition stopped.'){
    generation++;release();status.running=false;report('stopped',message);
@@ -79,22 +89,32 @@
   function confirm(reading,frameHash){
    const reward=root.CamoRewardParser.parse(reading,catalog);
    if(!reward){pending=null;return null;}
-   if(pending?.id===reward.id&&performance.now()-pending.at>=500){pending=null;onReward(reward);return reward;}
+   if(pending?.id===reward.id){if(performance.now()-pending.at>=200){pending=null;onReward(reward);return reward;}return null;}
    pending={id:reward.id,at:performance.now(),frameHash};return null;
   }
   async function scan(run){
    if(run!==generation||!status.running)return;
-   let delay=2000;
+   let delay=1000;
    try{
     if(!video||video.readyState<2||!video.videoWidth){pending=null;report('waiting','Waiting for a visible game window.');return;}
     status.checks++;
     const mode=menuCandidate(video)?'menu':bannerCandidate(video)?'reward':null;
     if(!mode){
-     pending=null;cache=null;report('watching','Waiting for a camo overview or after-match rewards. Small checks every 2 seconds; OCR idle.');return;
+     pending=null;cache=null;
+     if(performance.now()<burstUntil){delay=250;report('watching','Results are transitioning. Watching for the next weapon card…');return;}
+     burstDeadline=0;await setCaptureRate(1,run);if(run!==generation)return;
+     report('watching','Waiting for a camo overview or after-match rewards. Small checks every second; OCR idle.');return;
     }
     if(performance.now()<blockedUntil&&cache?.mode===mode)return;
-    delay=1000;
+    delay=mode==='reward'?250:1000;
     const crops=mode==='menu'?overviewCrops(video):frameCrops(video),frameHash=mode+Object.values(crops).map(hash).join(':');
+    if(mode==='reward'){
+     if(!burstDeadline)burstDeadline=performance.now()+90000;
+     burstUntil=Math.min(burstDeadline,performance.now()+4000);
+     await setCaptureRate(performance.now()<burstUntil?4:1,run);
+     if(performance.now()>=burstDeadline)delay=1000;
+    }else{burstUntil=0;burstDeadline=0;await setCaptureRate(1,run);}
+    if(run!==generation)return;
     if(!worker){
      report('loading','Results candidate found. Waking the local recogniser…');
      const created=await createOCR();if(run!==generation){await created.terminate();return;}
@@ -117,7 +137,7 @@
      return;
     }
     if(!root.CamoRewardParser.key(reading.header).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS')){
-     blockedUntil=performance.now()+8000;pending=null;report('watching','No results banner confirmed. OCR resting; small checks continue.');return;
+     blockedUntil=performance.now()+8000;pending=null;burstUntil=0;burstDeadline=0;await setCaptureRate(1,run);if(run!==generation)return;report('watching','No results banner confirmed. OCR resting; small checks continue.');return;
     }
     resultsSeenAt=performance.now();
     const reward=confirm(reading,frameHash);
@@ -146,6 +166,7 @@
     if(!track)throw Error('No shared video track was returned.');
     track.onended=()=>stop('Sharing ended. Click Start tracking to share the game window again.');
     status.source=track.getSettings().displaySurface||'selected surface';
+    status.captureFPS=track.getSettings().frameRate||1;
     report('starting','Game sharing connected. Waiting for the first video frame…');
     video=document.createElement('video');video.muted=true;video.playsInline=true;video.setAttribute('aria-hidden','true');video.dataset.browserCapture='true';
     video.style.cssText='position:fixed;width:1px;height:1px;bottom:0;right:0;opacity:.01;pointer-events:none';document.body.append(video);video.srcObject=stream;
