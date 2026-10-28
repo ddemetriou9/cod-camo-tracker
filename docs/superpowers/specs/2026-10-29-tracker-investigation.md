@@ -28,3 +28,12 @@ Add a bounded, text-only evidence trail across capture, scheduling, OCR, parsing
 
 ## Evidence required before changing recognition
 One live report spanning a camo menu and an after-match failure. Compare pixel gates, actual frames, OCR output, rejection and save result. Reproduce that failure in a focused test before changing capture, confidence gates or recognition. The retained local tests remain regressions, not a live success claim.
+
+## Live report findings and narrow repair (29 October)
+The report came from Firefox 158 with a live, unmuted 1920x1080 video track and advancing media time. Scan gaps were approximately one second, at most 2629ms; changed crop hashes show changing pixels. A zero presented-frame counter alone is not evidence of frozen capture. Background throttling is not demonstrated in this report.
+
+The menu OCR returned the fixed-label corruption `CAMN SELELT` with 78% confidence. An exact-title early return discarded the weapon and category fields before reading them. A regression with that exact OCR string and real fixture OCR for the remaining fields reproduces the rejection. Tolerate at most two substitutions in the constrained fixed heading only, while preserving the known unique progression heading, valid labelled category totals, confidence gates and two-reading confirmation.
+
+Sixteen OCR workers started in roughly 56 seconds. The idle check measured time since a confirmed menu/result, not time since the current worker was created or used. After the original idle period expired, a newly loaded worker with a rejected reading was immediately destroyed. A virtual-age lifecycle regression reproduces five starts instead of two. Base idle retirement on the current worker's creation, actual OCR use and confirmed cached context; keep the 15-second inactivity release and Stop cleanup.
+
+The recorded results card had an unreadable reward with zero overall confidence. It must remain rejected; no camo unlock can be inferred from that sample. The explicit wide scan in the report captured a Best Play replay, not a weapon camo menu. These two observations require separate live validation after the proven title/lifecycle fixes, not relaxed reward matching.

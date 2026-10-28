@@ -33,7 +33,7 @@
  function overviewCrops(source,layout=MENU_REGIONS){return Object.fromEntries(Object.entries(layout).map(([name,region])=>[name,prepare(crop(source,region,600),name!=='weapon')]));}
  async function readOverviewCrops(crops,worker){
   const title=(await worker.recognize(crops.title)).data;
-  if(!root.CamoRewardParser.key(title.text).replace(/0/g,'O').includes('CAMOSELECT'))return {header:title.text,categories:[],confidence:title.confidence||0};
+  if(!root.CamoRewardParser.isCamoTitle(title.text))return {header:title.text,categories:[],confidence:title.confidence||0};
   const weapon=(await worker.recognize(crops.weapon)).data,categories=[];
   await worker.setParameters({tessedit_pageseg_mode:'7'});
   function usable(data,name){const r=root.CamoRewardParser.overviewReadingFromLines([{text:data.text,confidence:data.confidence||0}]).categories[0],m=r&&/^(MILITARY|SPECIAL|COMPLETIONIST|PRESTIGE)\s*[\[(]?\s*(\d+)\s*\/\s*(\d+)/.exec(r.text);return r?.confidence>=60&&m?.[1]===name.toUpperCase()&&Number(m[2])<=Number(m[3])&&({military:[8],special:[3],completionist:[3,4],prestige:[4]})[name].includes(Number(m[3]));}
@@ -51,12 +51,12 @@
    const {data}=await worker.recognize(canvas,{}, {text:true,blocks:true});
    const rawLines=(data.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>paragraph.lines||[]));
    const lines=rawLines.map(line=>({text:line.text,confidence:line.confidence??data.confidence}));
-   const title=rawLines.find(line=>root.CamoRewardParser.key(line.text).replace(/0/g,'O').includes('CAMOSELECT'));
+   const title=rawLines.find(line=>root.CamoRewardParser.isCamoTitle(line.text));
    let layout;
    function regionFor(box,pad=4){const x=Math.max(0,box.x0-pad),y=Math.max(0,box.y0-pad);return [x/canvas.width,y/canvas.height,(Math.min(canvas.width,box.x1+pad)-x)/canvas.width,(Math.min(canvas.height,box.y1+pad)-y)/canvas.height];}
    function union(boxes){return {x0:Math.min(...boxes.map(b=>b.x0)),y0:Math.min(...boxes.map(b=>b.y0)),x1:Math.max(...boxes.map(b=>b.x1)),y1:Math.max(...boxes.map(b=>b.y1))};}
    if(title){
-    const words=(title.words||[]).filter(word=>['CAMO','SELECT'].includes(root.CamoRewardParser.normal(word.text).replace(/0/g,'O'))),boxes=words.length?words.map(word=>word.bbox):[title.bbox];
+    const words=(title.words||[]).filter(word=>/^(CAM[A-Z0-9]|SE[A-Z0-9]{3}T)$/.test(root.CamoRewardParser.normal(word.text))),boxes=words.length?words.map(word=>word.bbox):[title.bbox];
     const box=union(boxes),tw=box.x1-box.x0,th=box.y1-box.y0;
     const region=[Math.max(0,box.x0-tw*.08)/canvas.width,(box.y0+th*1.55)/canvas.height,Math.min(tw*1.3,canvas.width-box.x0)/canvas.width,th*1.3/canvas.height];
     layout={title:regionFor(box,6),weapon:region};
@@ -88,8 +88,8 @@
     const scoutLines=(scout.blocks||[]).flatMap(block=>(block.paragraphs||[]).flatMap(paragraph=>paragraph.lines||[]));
     const resultHeader=scoutLines.find(line=>root.CamoRewardParser.key(line.text).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS'));
     if(resultHeader||(scout.confidence>=70&&root.CamoRewardParser.key(scout.text).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS'))){texts.header=resultHeader?.text||scout.text;confidences[0]=resultHeader?.confidence??scout.confidence;continue;}
-    const menuHeader=scoutLines.find(line=>root.CamoRewardParser.key(line.text).replace(/0/g,'O').includes('CAMOSELECT'));
-    const menuHint=(menuHeader?.confidence??scout.confidence)>=60&&root.CamoRewardParser.key(menuHeader?.text||scout.text).replace(/0/g,'O').includes('CAMOSELECT');
+    const menuHeader=scoutLines.find(line=>root.CamoRewardParser.isCamoTitle(line.text));
+    const menuHint=(menuHeader?.confidence??scout.confidence)>=60&&root.CamoRewardParser.isCamoTitle(menuHeader?.text||scout.text);
     return {header:scout.text||data.text,weapon:'',reward:'',confidence:scout.confidence||0,menuHint};
    }
   }
@@ -112,9 +112,9 @@
   await worker.setParameters({tessedit_pageseg_mode:'6',user_defined_dpi:'150'});return worker;
  }
  function create({catalog,onReward,onOverview=()=>{},onStatus}){
-  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0,burstUntil=0,burstDeadline=0,requestedRate=1,rateAttempt=0,rateAttemptAt=0,busyRun=0,forceScans=0,forceBudget=0;
+  let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,workerLastActiveAt=0,burstUntil=0,burstDeadline=0,requestedRate=1,rateAttempt=0,rateAttemptAt=0,busyRun=0,forceScans=0,forceBudget=0;
   let pendingCategories=new Map(),menuLayout=null,autoLocateAt=0,manualRescan=false;
-  const status={build:'2026-10-29-evidence-5',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false,captureFPS:1,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',lastFailure:'',layout:'default',confirmed:0,saved:0};
+  const status={build:'2026-10-29-live-report-6',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false,captureFPS:1,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',lastFailure:'',layout:'default',confirmed:0,saved:0};
   const events=[],lastReadings={},lastRejected={},longGaps=[];let previousStatus='',lastLoopAt=0,lastFrameCount=0,lastFrameAt=0,loopGapMs=0,workerStarts=0,lastFrameSample=null,largestScanGapMs=0;
   function note(type,detail={}){events.push({at:new Date().toISOString(),type,...detail});if(events.length>80)events.shift();}
   function visibilityChanged(){note('visibility',{state:document.visibilityState});}
@@ -185,15 +185,15 @@
     if(!worker){
      report('loading','Possible menu/results screen. Waking the local recogniser…');
      workerStarts++;note('worker',{action:'start',starts:workerStarts});const created=await createOCR();if(run!==generation){await created.terminate();return;}
-     worker=created;status.ocrLoaded=true;
+     worker=created;status.ocrLoaded=true;workerLastActiveAt=performance.now();
     }
     let reading;
     if(cache?.hash===frameHash)reading=cache.reading;
     else{
      report('reading',mode==='wide'?'Locating camo text on the visible screen…':mode==='menu'?'Camo overview found. Reading the weapon and category totals…':'Checking the header of a possible menu/results screen…');
-     const start=performance.now();reading=mode==='wide'?await readWideOverview(crops.screen,worker):mode==='menu'?await readOverviewCrops(crops,worker):await readCrops(crops,worker);
+     const start=performance.now();workerLastActiveAt=start;reading=mode==='wide'?await readWideOverview(crops.screen,worker):mode==='menu'?await readOverviewCrops(crops,worker):await readCrops(crops,worker);
      if(run!==generation)return;
-     lastReadings[mode]={at:new Date().toISOString(),frameHash,reading:describe(reading)};note('ocr',{mode,frameHash,confidence:reading.confidence||0,elapsedMs:Math.round(performance.now()-start)});
+     workerLastActiveAt=performance.now();lastReadings[mode]={at:new Date().toISOString(),frameHash,reading:describe(reading)};note('ocr',{mode,frameHash,confidence:reading.confidence||0,elapsedMs:Math.round(performance.now()-start)});
      status.reads++;status.lastReadMs=Math.round(performance.now()-start);cache={hash:frameHash,reading,mode};
      status.lastReading=(mode==='reward'?['Header: '+reading.header,'Weapon: '+reading.weapon,'Reward: '+reading.reward,'Confidence: '+reading.confidence].join('\n'):[reading.header,...reading.categories.map(r=>r.text+' ('+Math.round(r.confidence)+'%)'),'Header confidence: '+Math.round(reading.confidence)+'%'].join('\n')).slice(0,1600);
     }
@@ -215,7 +215,7 @@
      }
      if(mode==='wide'&&reading.layout){menuLayout=reading.layout;status.layout='located camo text';}
      status.lastFailure='';
-     resultsSeenAt=performance.now();
+     workerLastActiveAt=performance.now();
      const now=performance.now(),confirmed=[],next=new Map();
      for(const entry of overview.entries){const key=entry.weapon+'|'+entry.category+'|'+entry.current+'/'+entry.target,previous=pendingCategories.get(key);if(previous&&now-previous.at>=500)confirmed.push(entry);next.set(key,previous||{at:now});}
      pendingCategories=next;
@@ -228,7 +228,7 @@
     if(!root.CamoRewardParser.key(reading.header).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS')){
      blockedUntil=performance.now()+8000;pending=null;burstUntil=0;burstDeadline=0;status.lastFailure='No recognised camo/results header.';reject(mode,status.lastFailure,reading);await setCaptureRate(1,run);if(run!==generation)return;report('watching','No results or camo header confirmed. OCR resting; the failed text remains in Last recognised text.');return;
     }
-    resultsSeenAt=performance.now();
+    workerLastActiveAt=performance.now();
     status.lastFailure='';
     const reward=confirm(reading,frameHash);
     if(reward)report('watching',reward.weapon+' — '+reward.name+(reward.applyResult==='failed'?' could not be saved. Check browser storage.':reward.applyResult==='already-recorded'?' was already recorded; manual corrections preserved.':' recognised. Progress saved automatically.'));
@@ -236,7 +236,7 @@
     else report('watching','Results visible. Waiting for a readable camo reward; attachment and level totals are ignored.');
    }catch(error){if(run===generation){stop();report('error','Recognition stopped: '+error.message+' Try Start tracking again.');}}
    finally{
-    if(run===generation&&status.running&&worker&&performance.now()-resultsSeenAt>15000){
+    if(run===generation&&status.running&&worker&&performance.now()-workerLastActiveAt>15000){
      note('worker',{action:'unload-idle'});const retiring=worker;worker=null;status.ocrLoaded=false;cache=null;await retiring.terminate().catch(()=>{});
      if(run===generation)report('watching',(status.lastFailure?'Last check: '+status.lastFailure+' ':'Waiting for camo menus or after-match rewards. ')+'OCR unloaded to save memory; small banner checks continue.');
     }
@@ -269,7 +269,7 @@
     report('loading','Preparing local OCR. The first start downloads recognition files; future starts use the browser cache.');
     workerStarts++;note('worker',{action:'start',starts:workerStarts});const created=await createOCR((name,progress)=>{if(run===generation)report('loading','Preparing local OCR: '+name+(Number.isFinite(progress)?' '+Math.round(progress*100)+'%':'')+'.');});
     if(run!==generation){await created.terminate();return;}
-    worker=created;status.ocrLoaded=true;resultsSeenAt=performance.now();report('watching','Tracking started. Play normally and leave the results cards visible after the match.');
+    worker=created;status.ocrLoaded=true;workerLastActiveAt=performance.now();report('watching','Tracking started. Play normally and leave the results cards visible after the match.');
     timer=setTimeout(()=>scan(run),500);
    }catch(error){
     if(run!==generation)return;

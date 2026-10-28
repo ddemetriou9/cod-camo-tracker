@@ -4,6 +4,12 @@
  const normal=text=>String(text||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ');
  const key=text=>normal(text).replace(/ /g,'');
  const weaponKey=text=>key(text).replace(/0/g,'O');
+ // Only the fixed screen label tolerates two OCR substitutions. Weapons and counters remain independently validated.
+ function isCamoTitle(text){
+  if(key(text).replace(/0/g,'O').includes('CAMOSELECT'))return true;
+  return String(text||'').split(/[\r\n]+/).some(line=>{const candidate=/\b(CAM[A-Z0-9])\s+(SE[A-Z0-9]{3}T)\b/.exec(normal(line));if(!candidate)return false;const read=candidate[1]+candidate[2],expected='CAMOSELECT';let differences=0;for(let i=0;i<expected.length;i++)if(read[i]!==expected[i])differences++;return differences<=2;});
+ }
+
  function parse({header,weapon,reward,confidence=0},catalog){
   if(confidence<70||!key(header).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS'))return null;
   const lines=String(weapon||'').split(/[\r\n]+/).map(weaponKey).filter(Boolean);
@@ -22,7 +28,7 @@
   const c=camos[0];return {id:c.id,weapon:w.name,name:c.name,slot:c.slot,military:false};
  }
  function parseOverview({header,categories,confidence=0},catalog){
-  if(confidence<60||!key(header).replace(/0/g,'O').includes('CAMOSELECT'))return null;
+  if(confidence<60||!isCamoTitle(header))return null;
   const headings=String(header||'').split(/[\r\n]+/).map(line=>{
    const compact=key(line);return compact.replace(/0/g,'O').endsWith('PROGRESSION')?weaponKey(compact.slice(0,-11)).replace(/1/g,'I'):null;
   }).filter(Boolean);
@@ -42,7 +48,7 @@
   return unique.length?{weapon:weapons[0].name,entries:unique,signature:weapons[0].id+'|'+unique.map(e=>e.category+':'+e.current+'/'+e.target).sort().join('|')}:null;
  }
  function overviewReadingFromLines(lines){
-  const relevant=lines.filter(line=>key(line.text).replace(/0/g,'O').includes('CAMOSELECT')||key(line.text).replace(/0/g,'O').endsWith('PROGRESSION')||line.role==='weapon');
+  const relevant=lines.filter(line=>isCamoTitle(line.text)||key(line.text).replace(/0/g,'O').endsWith('PROGRESSION')||line.role==='weapon');
   const header=(relevant.length?relevant:lines.slice(0,8)).map(line=>line.text).join('\n'),categories=[];
   for(let i=0;i<lines.length;i++){
    let text=String(lines[i].text||'').trim().toUpperCase(),confidence=lines[i].confidence||0;
@@ -54,7 +60,7 @@
   return {header,categories,confidence:relevant.length?Math.min(...relevant.map(line=>line.confidence||0)):0};
  }
  function overviewIssue(reading,catalog){
-  if(!key(reading.header).replace(/0/g,'O').includes('CAMOSELECT'))return 'Could not read the Camo Select title.';
+  if(!isCamoTitle(reading.header))return 'Could not read the Camo Select title.';
   const headings=String(reading.header||'').split(/[\r\n]+/).map(line=>{const compact=key(line);return compact.replace(/0/g,'O').endsWith('PROGRESSION')?weaponKey(compact.slice(0,-11)).replace(/1/g,'I'):null;}).filter(Boolean);
   const weapons=catalog.weapons.filter(w=>headings.includes(weaponKey(w.name).replace(/1/g,'I')));
   if(!weapons.length)return 'Could not match the weapon progression heading to a known weapon.';
@@ -63,6 +69,6 @@
   if(!parseOverview(reading,catalog))return weapons[0].name+': no unambiguous labelled category total passed the reading checks.';
   return '';
  }
- const api={parse,parseOverview,overviewReadingFromLines,overviewIssue,normal,key};
+ const api={parse,parseOverview,overviewReadingFromLines,overviewIssue,isCamoTitle,normal,key};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoRewardParser=api;
 })(typeof window==='object'?window:globalThis);

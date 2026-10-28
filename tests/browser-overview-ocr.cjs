@@ -2,7 +2,7 @@
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../web');
-const fixtures=process.argv.slice(2);
+const fixtures=process.argv.slice(2,3),corruptTitle=process.argv[3]==='corrupt-title';
 if(fixtures.length!==1)throw Error('Usage: node tests/browser-ocr.cjs <camo-overview.png>');
 const server=http.createServer((req,res)=>{
  const name=new URL(req.url,'http://localhost').pathname;
@@ -17,15 +17,16 @@ const server=http.createServer((req,res)=>{
   const page=await browser.newPage(),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push({url:r.url(),method:r.method()}));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.waitForLoadState('networkidle');
   assert(!requests.some(r=>r.url.includes('/vendor/')),'Manual browsing must not load OCR assets');
-  const output=await page.evaluate(async()=>{
+  const output=await page.evaluate(async(corruptTitle)=>{
    const worker=await BrowserCamoCapture.createOCR(),results=[];
+   if(corruptTitle){const recognize=worker.recognize.bind(worker);let first=true;worker.recognize=async(...args)=>{if(first){first=false;return {data:{text:'CHALLENGES / CAMO CHALLE\nCAMN SELELT\n',confidence:78}};}return recognize(...args);};}
    try{for(let i=0;i<1;i++){
     const image=new Image();image.src='/fixture'+i;await image.decode();const start=performance.now();
     const candidate=BrowserCamoCapture.menuCandidate(image);
     const reading=await BrowserCamoCapture.readOverviewCrops(BrowserCamoCapture.overviewCrops(image),worker);
     results.push({candidate,reading,overview:CamoRewardParser.parseOverview(reading,catalog),milliseconds:Math.round(performance.now()-start)});
    }}finally{await worker.terminate();}return results;
-  });
+  },corruptTitle);
   console.log(JSON.stringify(output,null,2));
   assert.equal(output[0].candidate,true);assert.equal(output[0].overview?.weapon,'Han 86');assert.equal(output[0].overview?.entries.find(e=>e.category==='MILITARY')?.current,8);assert.equal(output[0].overview?.entries.find(e=>e.category==='SPECIAL')?.current,3);
   assert(requests.every(r=>r.method==='GET'&&new URL(r.url).hostname==='127.0.0.1'),'No uploads or third-party requests');
