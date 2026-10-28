@@ -2,6 +2,7 @@
 (function(root){
  'use strict';
  const REGIONS={header:[.015,.052,.25,.052],weapon:[.018,.110,.30,.060],reward:[.37,.642,.27,.030],type:[.44,.682,.12,.023]};
+ const MENU_REGIONS={title:[.068,.025,.12,.05],weapon:[.068,.089,.12,.034],military:[.065,.14,.13,.035],special:[.065,.39,.08,.032],completionist:[.065,.565,.11,.034],prestige:[.065,.70,.09,.028]};
  const size=source=>[source.videoWidth||source.naturalWidth||source.width,source.videoHeight||source.naturalHeight||source.height];
  function crop(source,region,width){
   const [w,h]=size(source),[x,y,rw,rh]=region;
@@ -14,6 +15,10 @@
   let gold=0;for(let i=0;i<pixels.length;i+=4){const [r,g,b]=[pixels[i],pixels[i+1],pixels[i+2]];if(r>135&&g>110&&b<g*.70&&r>g*.82&&r<g*1.65)gold++;}
   return gold/(pixels.length/4)>.012;
  }
+ function menuCandidate(source){
+  function whiteFraction(region,width,threshold=145){const canvas=crop(source,region,width),p=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let white=0;for(let i=0;i<p.length;i+=4)if(p[i]>threshold&&p[i+1]>threshold&&p[i+2]>threshold&&Math.max(p[i],p[i+1],p[i+2])-Math.min(p[i],p[i+1],p[i+2])<75)white++;return white/(p.length/4);}
+  return whiteFraction([.075,.095,.105,.02],100)>.48&&whiteFraction(MENU_REGIONS.title,100,110)>.03;
+ }
  function hash(canvas){
   const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
   let value=2166136261;for(let i=0;i<data.length;i+=16){value^=data[i];value=Math.imul(value,16777619);value^=data[i+1];value=Math.imul(value,16777619);}
@@ -25,6 +30,14 @@
   ctx.putImageData(image,0,0);return canvas;
  }
  function frameCrops(source){return {header:prepare(crop(source,REGIONS.header,700),true),weapon:prepare(crop(source,REGIONS.weapon,650),true),reward:prepare(crop(source,REGIONS.reward,800),false),type:prepare(crop(source,REGIONS.type,500),true)};}
+ function overviewCrops(source){return Object.fromEntries(Object.entries(MENU_REGIONS).map(([name,region])=>[name,prepare(crop(source,region,600),name!=='weapon')]));}
+ async function readOverviewCrops(crops,worker){
+  const title=(await worker.recognize(crops.title)).data;
+  if(!root.CamoRewardParser.key(title.text).includes('CAMOSELECT'))return {header:title.text,categories:[],confidence:title.confidence||0};
+  const weapon=(await worker.recognize(crops.weapon)).data,categories=[];
+  for(const name of ['military','special','completionist','prestige']){const {data}=await worker.recognize(crops[name]);categories.push({text:data.text,confidence:data.confidence||0});}
+  return {header:title.text+'\n'+weapon.text,categories,confidence:Math.min(title.confidence||0,weapon.confidence||0)};
+ }
  async function readCrops(crops,worker){
   const texts={},confidences=[];
   for(const name of ['header','weapon','reward']){
@@ -49,7 +62,7 @@
   const worker=await root.Tesseract.createWorker('eng',1,{workerPath:base+'worker.min.js',corePath:base+'core',langPath:base+'lang',workerBlobURL:false,logger:m=>{if(m.status!=='recognizing text')onProgress(m.status,m.progress);}}, {load_system_dawg:'0',load_freq_dawg:'0'});
   await worker.setParameters({tessedit_pageseg_mode:'6',user_defined_dpi:'150'});return worker;
  }
- function create({catalog,onReward,onStatus}){
+ function create({catalog,onReward,onOverview=()=>{},onStatus}){
   let generation=0,stream=null,video=null,worker=null,timer=null,pending=null,cache=null,blockedUntil=0,resultsSeenAt=0;
   const status={phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,source:'',ocrLoaded:false};
   function report(phase,message){Object.assign(status,{phase,message});onStatus({...status});}
@@ -75,12 +88,13 @@
    try{
     if(!video||video.readyState<2||!video.videoWidth){pending=null;report('waiting','Waiting for a visible game window.');return;}
     status.checks++;
-    if(!bannerCandidate(video)){
-     pending=null;cache=null;report('watching','Waiting for after-match rewards. Small banner check every 2 seconds; OCR idle.');return;
+    const mode=menuCandidate(video)?'menu':bannerCandidate(video)?'reward':null;
+    if(!mode){
+     pending=null;cache=null;report('watching','Waiting for a camo overview or after-match rewards. Small checks every 2 seconds; OCR idle.');return;
     }
-    if(performance.now()<blockedUntil)return;
+    if(performance.now()<blockedUntil&&cache?.mode===mode)return;
     delay=1000;
-    const crops=frameCrops(video),frameHash=hash(crops.header)+hash(crops.weapon)+hash(crops.reward);
+    const crops=mode==='menu'?overviewCrops(video):frameCrops(video),frameHash=mode+Object.values(crops).map(hash).join(':');
     if(!worker){
      report('loading','Results candidate found. Waking the local recogniser…');
      const created=await createOCR();if(run!==generation){await created.terminate();return;}
@@ -89,10 +103,18 @@
     let reading;
     if(cache?.hash===frameHash)reading=cache.reading;
     else{
-     report('reading','Results candidate found. Reading the weapon and centre reward card…');
-     const start=performance.now();reading=await readCrops(crops,worker);
+     report('reading',mode==='menu'?'Camo overview found. Reading the weapon and category totals…':'Results candidate found. Reading the weapon and centre reward card…');
+     const start=performance.now();reading=mode==='menu'?await readOverviewCrops(crops,worker):await readCrops(crops,worker);
      if(run!==generation)return;
-     status.reads++;status.lastReadMs=Math.round(performance.now()-start);cache={hash:frameHash,reading};
+     status.reads++;status.lastReadMs=Math.round(performance.now()-start);cache={hash:frameHash,reading,mode};
+    }
+    if(mode==='menu'){
+     const overview=root.CamoRewardParser.parseOverview(reading,catalog);
+     if(!overview){pending=null;blockedUntil=performance.now()+8000;report('watching','Possible camo overview: waiting for a readable weapon progression header and category totals.');return;}
+     resultsSeenAt=performance.now();
+     if(pending?.id==='menu:'+overview.signature&&performance.now()-pending.at>=500){pending=null;onOverview(overview);report('watching',overview.weapon+' overview scanned: '+overview.entries.map(e=>e.category.toLowerCase()+' '+e.current+'/'+e.target).join(' · ')+'. Open the next weapon to continue.');}
+     else{pending={id:'menu:'+overview.signature,at:performance.now()};report('confirming',overview.weapon+' camo totals detected. Keep this screen visible for one more check…');}
+     return;
     }
     if(!root.CamoRewardParser.key(reading.header).replace(/0/g,'O').includes('TOPPERFORMINGWEAPONS')){
      blockedUntil=performance.now()+8000;pending=null;report('watching','No results banner confirmed. OCR resting; small checks continue.');return;
@@ -106,7 +128,7 @@
    finally{
     if(run===generation&&status.running&&worker&&performance.now()-resultsSeenAt>15000){
      const retiring=worker;worker=null;status.ocrLoaded=false;cache=null;await retiring.terminate().catch(()=>{});
-     if(run===generation)report('watching','Waiting for after-match rewards. OCR unloaded to save memory; small banner checks continue.');
+     if(run===generation)report('watching','Waiting for camo menus or after-match rewards. OCR unloaded to save memory; small banner checks continue.');
     }
     if(run===generation&&status.running)timer=setTimeout(()=>scan(run),delay);
    }
@@ -144,5 +166,5 @@
   }
   return {start,stop,getStatus:()=>({...status})};
  }
- root.BrowserCamoCapture={create,createOCR,crop,bannerCandidate,frameCrops,readCrops,REGIONS};
+ root.BrowserCamoCapture={create,createOCR,crop,bannerCandidate,menuCandidate,frameCrops,readCrops,overviewCrops,readOverviewCrops,REGIONS,MENU_REGIONS};
 })(window);

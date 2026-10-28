@@ -1,6 +1,7 @@
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../web'),fixture=process.argv[2];
+const overviewMode=process.argv[3]==='overview',weapon=overviewMode?'Han 86':'PILA',total=overviewMode?11:6,clearedTotal=overviewMode?3:0;
 if(!fixture)throw Error('Usage: node tests/browser-lifecycle.cjs <military-reward.png>');
 const server=http.createServer((req,res)=>{
  const name=new URL(req.url,'http://localhost').pathname;
@@ -29,13 +30,14 @@ const server=http.createServer((req,res)=>{
   assert.match(await page.locator('#browser-stats').textContent(),/0 OCR reads/);
   assert.equal(await page.evaluate(()=>mockCapture.options.audio),false);assert.equal(await page.evaluate(()=>mockCapture.options.video.frameRate.max),1);
   await page.evaluate(()=>mockCapture.showReward());
-  await page.waitForFunction(()=>TrackerTest.count('PILA')===6,null,{timeout:20000});
-  assert.match(await page.locator('#browser-recent').textContent(),/PILA.*Military 6/);
-  await page.locator('#info-dialog .close-dialog').click();await page.locator('#search').fill('PILA');
-  await page.locator('[data-manual-camo="PILA:0"]').click();assert.equal(await page.evaluate(()=>TrackerTest.count('PILA')),0);
+  await page.waitForFunction(({weapon,total})=>TrackerTest.count(weapon)===total,{weapon,total},{timeout:20000});
+  assert.match(await page.locator('#browser-recent').textContent(),overviewMode?/Han 86.*Overview/:/PILA.*Military 6/);
+  if(overviewMode){assert.equal(await page.evaluate(()=>state.categoryTotals['HAN 86|COMPLETIONIST'].current),1);assert.equal(await page.evaluate(()=>done('Han 86',11)),false,'Partial completionist counts must not guess a Gold unlock');}
+  await page.locator('#info-dialog .close-dialog').click();await page.locator('#search').fill(weapon);
+  await page.locator('[data-manual-camo="'+(overviewMode?'HAN86':'PILA')+':0"]').click();assert.equal(await page.evaluate(weapon=>TrackerTest.count(weapon),weapon),clearedTotal);
   await page.locator('#automation').click();
   // Let the same reward remain visible across more than two scheduling turns.
-  await page.waitForTimeout(2600);assert.equal(await page.evaluate(()=>TrackerTest.count('PILA')),0,'Identical reward must preserve a manual correction');
+  await page.waitForTimeout(2600);assert.equal(await page.evaluate(weapon=>TrackerTest.count(weapon),weapon),clearedTotal,'Identical reading must preserve a manual correction');
   await page.locator('#browser-stop').click();
   assert.equal(await page.evaluate(()=>mockCapture.stream.getTracks().every(t=>t.readyState==='ended')),true);
   const stats=await page.locator('#browser-stats').textContent();await page.waitForTimeout(2200);assert.equal(await page.locator('#browser-stats').textContent(),stats);
@@ -50,6 +52,6 @@ const server=http.createServer((req,res)=>{
   assert.match(await page.locator('#browser-status').textContent(),/stopped/);
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   assert.deepEqual(errors,[]);assert(requests.every(r=>r.method()==='GET'&&new URL(r.url()).hostname==='127.0.0.1'));
-  console.log('PASS: 1920px display-stream reward detection and auto-apply, zero gameplay OCR, idle worker unload/reload, manual override receipts, Stop releases tracks, no work after Stop, permission cancellation, late picker cancellation, mobile controls, no uploads.');
+  console.log('PASS: 1920px display-stream '+(overviewMode?'overview':'reward')+' detection and auto-apply, zero gameplay OCR, idle worker unload/reload, manual override receipts, Stop releases tracks, no work after Stop, permission cancellation, late picker cancellation, mobile controls, no uploads.');
  }finally{await browser.close();server.closeAllConnections();server.close();}
 })().catch(e=>{console.error(e);server.closeAllConnections();server.close();process.exitCode=1;});
