@@ -2,7 +2,7 @@
 const {chromium}=require('playwright');
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../web');
-const fixtures=process.argv.slice(2);
+const fixtures=process.argv.slice(2,3),suppressMilitary=process.argv[3]==='drop-military';
 if(fixtures.length!==1)throw Error('Usage: node tests/browser-ocr.cjs <camo-overview.png>');
 const server=http.createServer((req,res)=>{
  const name=new URL(req.url,'http://localhost').pathname;
@@ -17,16 +17,20 @@ const server=http.createServer((req,res)=>{
   const page=await browser.newPage(),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push({url:r.url(),method:r.method()}));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.waitForLoadState('networkidle');
   assert(!requests.some(r=>r.url.includes('/vendor/')),'Manual browsing must not load OCR assets');
-  const output=await page.evaluate(async()=>{
+  const output=await page.evaluate(async(suppressMilitary)=>{
    const worker=await BrowserCamoCapture.createOCR(),results=[];
+   const recognize=worker.recognize.bind(worker);
+   if(suppressMilitary)worker.recognize=async(...args)=>{const result=await recognize(...args);if(args[2]?.blocks){for(const block of result.data.blocks||[])for(const paragraph of block.paragraphs||[])paragraph.lines=(paragraph.lines||[]).filter(line=>!/^MILITARY\b/.test(line.text));result.data.text=result.data.text.replace(/^MILITARY.*$/mg,'');}return result;};
    try{for(let i=0;i<1;i++){
     const image=new Image();image.src='/fixture'+i;await image.decode();const start=performance.now();
     const framed=document.createElement('canvas');framed.width=1920;framed.height=1080;const ctx=framed.getContext('2d');ctx.fillStyle='black';ctx.fillRect(0,0,1920,1080);ctx.drawImage(image,220,90,1500,Math.round(image.height*1500/image.width));const candidate=true;
     const reading=await BrowserCamoCapture.readWideOverview(BrowserCamoCapture.crop(framed,[0,0,1,1],1920),worker);
-    results.push({candidate,reading,overview:CamoRewardParser.parseOverview(reading,catalog),milliseconds:Math.round(performance.now()-start)});
+    const followUp=await BrowserCamoCapture.readOverviewCrops(BrowserCamoCapture.overviewCrops(framed,reading.layout),worker);
+    results.push({candidate,reading,followUp,smallOverview:CamoRewardParser.parseOverview(followUp,catalog),overview:CamoRewardParser.parseOverview(reading,catalog),milliseconds:Math.round(performance.now()-start)});
    }}finally{await worker.terminate();}return results;
-  });
+  },suppressMilitary);
   console.log(JSON.stringify(output,null,2));
+  assert.equal(output[0].smallOverview?.entries.find(e=>e.category==='MILITARY')?.current,8,'Learned small crops must retain recovered Military totals');
   assert.equal(output[0].candidate,true);assert.equal(output[0].overview?.weapon,'Han 86');assert.equal(output[0].overview?.entries.find(e=>e.category==='MILITARY')?.current,8);assert.equal(output[0].overview?.entries.find(e=>e.category==='SPECIAL')?.current,3);
   assert(requests.every(r=>r.method==='GET'&&new URL(r.url).hostname==='127.0.0.1'),'No uploads or third-party requests');
   assert.deepEqual(errors,[]);

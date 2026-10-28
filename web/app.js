@@ -206,8 +206,8 @@ function automaticReadingStatus(r){
  if(r.kind==='category')return 'Category total only — individual unlocks are not identified';
  return 'Not matched to a specific camo or saved goal yet';
 }
-function applyAutomaticReadings(entries){
- const actions=entries.map(r=>({r,match:resolveAutomaticReading(r)})).filter(({r,match})=>match&&state.autoApplied?.[match.id]!==automaticReceipt(r));
+function applyAutomaticReadings(entries,{reapply=false}={}){
+ const actions=entries.map(r=>({r,match:resolveAutomaticReading(r)})).filter(({r,match})=>match&&(reapply||state.autoApplied?.[match.id]!==automaticReceipt(r)));
  const summaries=entries.filter(r=>r.kind==='category'&&['MILITARY','SPECIAL','COMPLETIONIST','PRESTIGE'].includes(r.category)&&Number.isInteger(r.current)&&Number.isInteger(r.target)&&r.current>=0&&r.current<=r.target&&r.target>=1&&r.target<=8&&catalog.weapons.some(w=>canonical(w.name)===canonical(r.weapon))&&automaticReceipt(state.categoryTotals?.[canonical(r.weapon)+'|'+r.category]||{})!==automaticReceipt(r));
  if(!actions.length&&!summaries.length)return 0;
  const saved=commit(()=>{
@@ -226,7 +226,7 @@ function applyAutomaticReadings(entries){
    state.autoApplied[match.id]=automaticReceipt(r);
   }
  });
- return saved?actions.length+summaries.length:0;
+ return saved?actions.length+summaries.length:-1;
 }
 async function refreshAuto(){if(!companion)return;renderWatcherStatus();try{const status=await api('status');auto={...auto,...status,connected:true};$('#connection-dot').style.background=auto.running?'var(--lime)':'var(--muted)';if(!checkedNativeMigration){checkedNativeMigration=true;if(!localStorage.getItem(KEY)){const legacy=validate(await api('manual'));if(Object.keys(legacy.checks).length||legacy.goals.length){state=legacy;localStorage.setItem(KEY,JSON.stringify(state));render();toast('Your Windows tracker records were brought across.');}}}applyAutomaticReadings(auto.entries);if($('#info-dialog').open&&$('#info-title').textContent==='Automatic tracker')renderAutomation();}catch(e){auto.connected=false;auto.message=e.message;}renderWatcherStatus();}
 function renderWatcherStatus(){

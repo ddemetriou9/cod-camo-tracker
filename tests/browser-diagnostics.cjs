@@ -50,6 +50,13 @@ const server=http.createServer((req,res)=>{
   await page.locator('#automation').click();
   // Let the same reward remain visible across more than two scheduling turns.
   await page.waitForTimeout(2600);assert.equal(await page.evaluate(weapon=>TrackerTest.count(weapon),weapon),clearedTotal,'Identical reading must preserve a manual correction');
+  await page.evaluate(()=>{window.restoreReceiptStorage=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Storage full','QuotaExceededError');};});
+  await page.locator('#browser-scan').click();await page.waitForFunction(()=>document.querySelector('#browser-status').textContent.includes('could not be saved'),null,{timeout:15000});
+  assert.equal(await page.evaluate(()=>TrackerTest.count('Han 86')),3,'A failed rescan must not claim success using the old applied receipt');
+  await page.evaluate(()=>Storage.prototype.setItem=restoreReceiptStorage);
+  await page.locator('#browser-scan').click();
+  await page.waitForFunction(()=>TrackerTest.count('Han 86')===11,null,{timeout:15000});
+  assert.equal(await page.evaluate(()=>TrackerTest.count('Han 86')),11,'Explicit rescan must reapply visible Military unlocks despite an old receipt');
   // Force a storage failure, then retry, without allowing a false saved status.
   await page.evaluate(()=>{TrackerTest.commit(()=>{state.checks={};state.categoryTotals={};state.autoApplied={};});window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Storage full','QuotaExceededError');};});
   await page.locator('#browser-scan').click();await page.waitForFunction(()=>document.querySelector('#browser-status').textContent.includes('could not be saved'),null,{timeout:15000});

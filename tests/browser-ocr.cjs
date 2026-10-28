@@ -23,11 +23,14 @@ const server=http.createServer((req,res)=>{
     const image=new Image();image.src='/fixture'+i;await image.decode();const start=performance.now();
     const candidate=BrowserCamoCapture.bannerCandidate(image);
     const reading=await BrowserCamoCapture.readCrops(BrowserCamoCapture.frameCrops(image),worker);
-    results.push({candidate,reading,reward:CamoRewardParser.parse(reading,catalog),milliseconds:Math.round(performance.now()-start)});
+    let fallback;
+    if(i===0){const recognize=worker.recognize.bind(worker);let first=true;worker.recognize=async(...args)=>{if(first){first=false;return {data:{text:'Unreadable tight header',confidence:10}};}return recognize(...args);};try{const recovered=await BrowserCamoCapture.readCrops(BrowserCamoCapture.frameCrops(image),worker);fallback={reading:recovered,reward:CamoRewardParser.parse(recovered,catalog)};}finally{worker.recognize=recognize;}}
+    results.push({candidate,reading,fallback,reward:CamoRewardParser.parse(reading,catalog),milliseconds:Math.round(performance.now()-start)});
    }}finally{await worker.terminate();}return results;
   });
   console.log(JSON.stringify(output,null,2));
   assert.equal(output[0].candidate,true);assert.equal(output[0].reward?.weapon,'PILA');assert.equal(output[0].reward?.slot,5);
+  assert.equal(output[0].fallback?.reward?.weapon,'PILA','Broad header fallback must continue reading the weapon and reward');
   assert.equal(output[1].candidate,true);assert.equal(output[1].reward,null);
   assert(requests.every(r=>r.method==='GET'&&new URL(r.url).hostname==='127.0.0.1'),'No uploads or third-party requests');
   assert.deepEqual(errors,[]);
