@@ -58,4 +58,7 @@ assert.equal(reward(['WARLORD','SHOTGUN'],['MILITARY CAMO 7','CAMO'])?.slot,6);
 assert.equal(reward(['WARLORD','SHOTGUN'],['SIMPAN-7 GRIP','REAR GRIP']),null);
 assert.equal(reward(['WARLORD','SHOTGUN'],['| SZ PRIMA-4 DOT J','OPTIC','| HEGRE']),null);
 assert.equal(V.anchorIn(lines('TOP PERFORMING WEAPON'))?.screen,'results');
+// Side-by-side cards: an attachment next to a camo, and two Military cards (highest wins).
+assert.equal(reward(['SANG 9MM','PISTOL'],['SZ ECHELON HOLO','OPTIC','MILITARY CAMO 3','CAMO'])?.slot,2);
+assert.equal(reward(['SANG 9MM'],['MILITARY CAMO 3','CAMO','MILITARY CAMO 4','CAMO'])?.slot,3);
 console.log('camo-vocab: all checks passed');

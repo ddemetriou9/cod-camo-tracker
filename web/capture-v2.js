@@ -7,12 +7,12 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-5';
+ const BUILD='2026-10-29-v2-6';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
- const REWARD_BAND=[.22,.52,.56,.32];// centre-bottom reward card area (fraction of frame)
+ const REWARD_BAND=[.08,.48,.84,.40];// reward card row (fraction of frame): wide enough for several cards side by side
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
  const SAMPLE_MS={none:500,menu:500,results:150};
- const FORCE_MS=4000;// read anyway if an area keeps moving slightly (animated backgrounds) for this long
+ const FORCE_MS=4000,STRIP_LIMITS={still:.03,fresh:.02};// read anyway if an area keeps moving slightly (animated backgrounds) for this long
  const MENU_WHITELIST='ACDEILMNOPRSTY0123456789/ ',DIGITS=/\d/;
 
  /* ---- pixels ---- */
@@ -379,7 +379,9 @@
     if(status.width!==W||status.height!==H){status.width=W;status.height=H;screen=null;area=null;pending=null;strip=watch();}
     status.checks++;status.frames=video.getVideoPlaybackQuality?.().totalVideoFrames||0;
     if(!screen){
-     const o=observe(strip,thumb(video,clampRegion(fraction(STRIP,W,H),W,H)));
+     // Menus and results animate (glows, particles, flashes), so the heading strip only has to be nearly still;
+     // gameplay (minimap, HUD) changes far more than this.
+     const o=observe(strip,thumb(video,clampRegion(fraction(STRIP,W,H),W,H)),STRIP_LIMITS);
      if((o.settled&&o.fresh)||o.forced||manual){await findScreen(run,W,H,manual?'manual':o.forced?'forced':'settled');if(manual&&!screen)manual=false;}
      else if(status.phase!=='watching')report('watching','Watching. Small checks only while the game is moving; OCR waits for a menu or results screen.');
      delay=screen?SAMPLE_MS[screen.kind]:now()<resultsUntil?SAMPLE_MS.results:SAMPLE_MS.none;return;

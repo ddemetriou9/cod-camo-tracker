@@ -106,15 +106,19 @@
   const weapon=rewardWeapon(weaponLines,catalog);
   if(!weapon)return {reward:null,issue:'No single weapon name matched.'};
   const w=weapon.weapon.name,lines=rewardLines.map(l=>clean(l.text)).filter(Boolean);
+  // Several cards can sit side by side; the highest Military number covers the earlier ones (sequential unlocks).
+  let military=null,unreadable=false;
   for(const line of lines){
    const hit=locate(line,'MILITARY CAMO');
-   if(hit&&hit.cost<=1.5){
-    const digit=line.slice(hit.end).replace(/ /g,'').slice(0,1).replace(/./,c=>DIGIT[c]||c);
-    const slot=Number(digit)-1;
-    if(!(slot>=0&&slot<8))return {reward:null,weapon:w,issue:'Military camo number unreadable.'};
-    const camo=catalog.challenges.find(c=>c.weapon===w&&c.slot===slot);
-    return camo?{reward:{id:camo.id,weapon:w,name:camo.name,slot,military:true},weaponLine:weapon.line}:{reward:null,weapon:w,issue:'Military slot missing from catalogue.'};
-  }}
+   if(!hit||hit.cost>1.5)continue;
+   const slot=Number(line.slice(hit.end).replace(/ /g,'').slice(0,1).replace(/./,c=>DIGIT[c]||c))-1;
+   if(slot>=0&&slot<8)military=Math.max(military??-1,slot);else unreadable=true;
+  }
+  if(military!==null){
+   const camo=catalog.challenges.find(c=>c.weapon===w&&c.slot===military);
+   return camo?{reward:{id:camo.id,weapon:w,name:camo.name,slot:military,military:true},weaponLine:weapon.line}:{reward:null,weapon:w,issue:'Military slot missing from catalogue.'};
+  }
+  if(unreadable)return {reward:null,weapon:w,issue:'Military camo number unreadable.'};
   // The type line under the name may say CAMO or the camo's group (the menu tooltip shows e.g. "SPECIAL").
   const typed=lines.some(line=>line.split(' ').some(word=>(locate(word,'CAMO')?.cost<=.35&&word.length<=5)||['SPECIAL','PRESTIGE','COMPLETIONIST','MASTERY'].some(t=>word.length>=t.length-1&&locate(word,t)?.cost<=1)));
   if(!typed)return {reward:null,weapon:w,issue:'No camo type label on the card.'};
