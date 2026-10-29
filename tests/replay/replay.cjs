@@ -6,10 +6,10 @@ const {expectedFromLabels,score}=require('./score.cjs');
 
 const args=process.argv.slice(2),flag=(name,fallback)=>{const i=args.indexOf('--'+name);return i<0?fallback:args[i+1];},has=name=>args.includes('--'+name);
 const clip=args[0]?.startsWith('--')?undefined:args[0];
-if(!clip||!fs.existsSync(clip))throw Error('Usage: node tests/replay/replay.cjs <clip.mp4> [--labels clip.json] [--browser firefox|msedge|both] [--rate 1] [--cpu 4] [--query engine=v2] [--headed] [--out file.json]');
+if(!clip||!fs.existsSync(clip))throw Error('Usage: node tests/replay/replay.cjs <clip.mp4> [--labels clip.json] [--browser firefox|msedge|both] [--rate 1] [--cpu 4] [--seed progress.json] [--query engine=v2] [--headed] [--out file.json]');
 const labelsFile=flag('labels',clip.replace(/\.[^.]+$/,'.json'));
 const labels=JSON.parse(fs.readFileSync(labelsFile,'utf8'));
-const rate=Number(flag('rate','1')),cpu=Number(flag('cpu','1')),query=flag('query',''),browsers=flag('browser','both')==='both'?['firefox','msedge']:[flag('browser')];
+const rate=Number(flag('rate','1')),cpu=Number(flag('cpu','1')),seed=flag('seed')?fs.readFileSync(flag('seed'),'utf8'):null,query=flag('query',''),browsers=flag('browser','both')==='both'?['firefox','msedge']:[flag('browser')];
 const root=path.resolve(__dirname,'../../web'),clipPath=path.resolve(clip);
 const out=flag('out',path.resolve(__dirname,'../../validation/replay-results',path.basename(clip).replace(/\.[^.]+$/,'')+'-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'));
 const types={'.js':'text/javascript','.wasm':'application/wasm','.html':'text/html','.css':'text/css','.json':'application/json','.webp':'image/webp','.png':'image/png','.traineddata':'application/octet-stream','.gz':'application/gzip'};
@@ -59,11 +59,15 @@ async function run(name){
   const context=await browser.newContext({viewport:{width:1400,height:900}}),page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await context.addInitScript(emulateCapture,rate);
-  // --cpu 4 slows Edge's CPU fourfold (Chromium DevTools throttling) to approximate a low-end PC.
-  if(cpu>1&&name!=='firefox'){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpu});}
+  // --seed progress.json starts from saved progress (e.g. earlier automatic saves followed by manual resets).
+  if(seed)await context.addInitScript(value=>{if(!sessionStorage.getItem('replay-seeded')){localStorage.setItem('mw4.fieldnotes.v1',value);sessionStorage.setItem('replay-seeded','1');}},seed);
+
   await page.goto(`http://127.0.0.1:${server.address().port}/${query?'?'+query:''}`);await page.waitForLoadState('networkidle');
   await page.locator('#automation').click();await page.locator('#browser-start').click();
   await page.waitForFunction(()=>window.__replay.startedAt>0,null,{timeout:60000});
+  // --cpu 4 slows Edge's CPU fourfold (Chromium DevTools throttling) to approximate a low-end PC. It starts once the
+  // replay is running, so page loading does not hit the harness timeouts; all tracking work is throttled.
+  if(cpu>1&&name!=='firefox'){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:cpu});}
   const duration=await page.evaluate(()=>window.__replay.duration);
   process.stdout.write(`${name}: replaying ${duration.toFixed(1)} s at ${rate}x…\n`);
   await page.waitForFunction(()=>window.__replay.ended,null,{timeout:(duration/rate+90)*1000,polling:500});

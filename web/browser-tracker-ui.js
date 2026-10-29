@@ -6,7 +6,7 @@
  function applyReward(reward){
   const camo=findCamo(reward.id);if(!camo)return 'failed';
   const receipt='browser-reward:'+reward.id;
-  if(state.autoApplied?.[receipt]==='unlocked')return 'already-recorded';
+  if(state.autoApplied?.[receipt]==='unlocked'&&!reward.reapply)return 'already-recorded';
   if(commit(()=>{
    setCamoUnlocked(camo,true);
    if(reward.military){state.categoryTotals??={};const key=canonical(camo.weapon)+'|MILITARY';state.categoryTotals[key]={current:Math.max(state.categoryTotals[key]?.current||0,camo.slot+1),target:8,observedAt:new Date().toISOString()};}

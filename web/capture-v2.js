@@ -7,9 +7,9 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-7';
+ const BUILD='2026-10-29-v2-10';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
- const REWARD_BAND=[.08,.48,.84,.40];// reward card row (fraction of frame): wide enough for several cards side by side
+ const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
  const SAMPLE_MS={none:500,menu:500,results:150};
  const FORCE_MS=4000,STRIP_LIMITS={still:.03,fresh:.02};// read anyway if an area keeps moving slightly (animated backgrounds) for this long
@@ -64,7 +64,8 @@
    for(const [y0,y1] of bands){
     const bh=y1-y0;if(bh<6||(depth&&bh>90))continue;
     const cols=new Uint16Array(ww);for(let y=y0;y<y1;y++)for(let x=xa;x<xb;x++)cols[x-xa]+=edge[y*w+x];
-    const joinGap=Math.max(4,Math.min(bh,60)*1.2);let x=0;
+    // The first pass must not bridge the gap between the left sidebar and the menu (tall merged bands would make it huge).
+    const joinGap=Math.max(4,Math.min(bh,depth?60:24)*1.2);let x=0;
     while(x<ww){
      if(!cols[x]){x++;continue;}
      let x1=x,last=x,count=0;while(x1<ww&&x1-last<=joinGap){if(cols[x1]){last=x1;count+=cols[x1];}x1++;}
@@ -126,7 +127,10 @@
  function locked(source,frame,W,H){
   const s=Math.min(frame[2]-frame[0],frame[3]-frame[1]),zone=clampRegion([frame[0]-s*.06,frame[1]-s*.06,s*.36,s*.36],W,H),[,,zw,zh]=zone;
   const p=draw(source,zone,zw,zh).getContext('2d').getImageData(0,0,zw,zh).data,seen=new Uint8Array(zw*zh);
-  const white=i=>{const r=p[i*4],g=p[i*4+1],b=p[i*4+2];return Math.min(r,g,b)>150&&Math.max(r,g,b)-Math.min(r,g,b)<75;};
+  // The padlock is whiter than its tile: on a light (silver) tile a fixed threshold would merge it with the tile.
+  const lum=[];for(let i=0;i<zw*zh;i++)lum.push(Math.min(p[i*4],p[i*4+1],p[i*4+2]));lum.sort((a,b)=>a-b);
+  const level=Math.min(215,Math.max(150,lum[Math.floor(lum.length*.75)]+30));
+  const white=i=>{const r=p[i*4],g=p[i*4+1],b=p[i*4+2];return Math.min(r,g,b)>level&&Math.max(r,g,b)-Math.min(r,g,b)<75;};
   let best=null;
   for(let start=0;start<zw*zh;start++){
    if(seen[start]||!white(start))continue;
@@ -193,7 +197,7 @@
  function create({catalog,onReward,onOverview=()=>{},onStatus}){
   let generation=0,stream=null,video=null,ocr=null,ocrStarting=null,ticker=null,busy=false;
   let screen=null,strip=null,area=null,pending=null,manual=false,resultsUntil=0;
-  const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
+  const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,prepMs:0,segmentMs:0,tickMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
   const events=[],lastReadings={},lastRejected={},longGaps=[];
   let lastLoopAt=0,largestGapMs=0,workerStarts=0,previousStatus='',tickerKind='';
   const now=()=>performance.now();
@@ -219,7 +223,7 @@
   async function read(run,mode,source,region,{psm=11,whitelist='',textHeight,scale,invert=false}){
    const engine=await ensureOCR(run);if(!engine)return null;
    const s=scale??(textHeight>=18&&textHeight<=40?1:Math.max(.5,Math.min(3,24/textHeight)));
-   const {canvas,toFrame}=normalize(source,region,s,invert);
+   const prep=now(),{canvas,toFrame}=normalize(source,region,s,invert);status.prepMs+=now()-prep;
    const start=now(),result=await engine.read(canvas,{psm,whitelist});if(run!==generation)return null;
    const ms=now()-start;status.reads++;status.lastReadMs=Math.round(ms);status.ocrBusyMs+=ms;
    const lines=result.lines.map(l=>({...l,frame:toFrame(l.bbox),inverted:invert}));
@@ -231,8 +235,9 @@
      colour and for text inside solid tabs (where whole-page OCR layout analysis fails). Each line is then read
      as a tight single-line crop, with dark backgrounds inverted so the OCR always sees dark text on light.
      stop(lines) may end early once the needed text is found. */
-  async function readArea(run,mode,region,{order='top',limit=14,stop=()=>false}={}){
-   const boxes=segment(video,region);
+  async function readArea(run,mode,region,{order='top',limit=14,stop=()=>false,minAspect=0}={}){
+   const seg=now(),found=segment(video,region);status.segmentMs+=now()-seg;
+   const boxes=found.filter(b=>b[2]-b[0]>=(b[3]-b[1])*minAspect);
    if(order==='large')boxes.sort((a,b)=>(b[3]-b[1])-(a[3]-a[1]));
    // Card labels are wide, short boxes; particle specks are tiny, so read the widest text-height boxes first.
    if(order==='wide')boxes.sort((a,b)=>(b[2]-b[0])*((b[3]-b[1])<=60)-(a[2]-a[0])*((a[3]-a[1])<=60));
@@ -267,7 +272,8 @@
     screen.regions={column:clampRegion([x0-u*2,y0+u*.8,Math.max(u*16,W*.2),H*.85-y0],W,H)};
    }else{
     // The weapon name is about three header-heights tall and starts a little below the header.
-    screen.regions={weapon:clampRegion([x0-u,y1,Math.max(u*20,W*.3),u*8],W,H),reward:clampRegion(fraction(REWARD_BAND,W,H),W,H)};
+    // A heading measured mid-animation can be mis-sized, so the band also has a floor from the screen size.
+    screen.regions={weapon:clampRegion([Math.max(0,x0-u*2),y0,Math.max(u*20,W*.32),Math.max(y1-y0+u*8,H*.16)],W,H),reward:clampRegion(fraction(REWARD_BAND,W,H),W,H)};
    }
    area=watch();pending=null;
    status.layout=anchor.screen+' heading at '+Math.round(x0)+','+Math.round(y0)+' (text '+Math.round(u)+' px)';
@@ -302,11 +308,13 @@
     for(const parts of [[pending.weaponLine],...pending.categoryLines]){
      // A label and its total split over two lines are re-read together as a small block.
      const f=parts.map(p=>p.frame),frame=[Math.min(...f.map(b=>b[0])),Math.min(...f.map(b=>b[1])),Math.max(...f.map(b=>b[2])),Math.max(...f.map(b=>b[3]))];
-     const got=await readLine(run,'menu-confirm',frame,parts[0]===pending.weaponLine?'':MENU_WHITELIST,parts.length>1?6:7);if(!got)return;
+     // Same unrestricted character set as the first read: a whitelist without brackets mangled "[3/3]" totals.
+     const got=await readLine(run,'menu-confirm',frame,'',parts.length>1?6:7);if(!got)return;
      lines.push(got);
     }
     const second=V.decodeMenu(lines,catalog),first=pending.decoded,tiles=pending.tiles;pending=null;
     const tilesNow=groupTiles(video,first.categories,W,H);
+    note('menu-reads',{first:first.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),second:second.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),confirmText:lines.map(l=>l.text).join(' | ').slice(0,200)});
     let agreed=first.weapon===second.weapon?first.categories.filter(a=>second.categories.some(b=>b.category===a.category&&b.current===a.current&&b.target===a.target)):[];
     // Cross-check each total against the padlocked tiles (both reads). This also catches a slashed zero read as 8.
     agreed=agreed.filter(c=>{
@@ -317,14 +325,20 @@
     });
     if(!agreed.length){reject('menu','Confirmation read disagreed: '+(second.weapon||'no weapon')+' '+second.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),lines);screen.retry=true;report('confirming',(first.weapon||'Weapon')+' totals did not match on the second read. Reading again…');return;}
     screen.retry=false;status.confirmed++;
-    let result=onOverview({weapon:first.weapon,entries:menuEntries({...first,categories:agreed}),reapply:manual});manual=false;
+    // Each visit to a weapon's camo menu re-applies what the game shows (once per visit), so a manual reset is
+    // corrected the next time the menu is opened. Automatic tracking only ever adds unlocks.
+    const reapply=manual||!(screen.reapplied??=new Set()).has(first.weapon);screen.reapplied.add(first.weapon);
+    let result=onOverview({weapon:first.weapon,entries:menuEntries({...first,categories:agreed}),reapply});manual=false;
     if(result==='saved')status.saved++;
     // A partial group's unlocked camos are exactly its tiles without a padlock (tile order = catalogue order).
     const named=[];
     for(const c of agreed){
      if(!c.tiles||c.category==='MILITARY'||c.current===0||c.current===c.target)continue;
-     const camos=groupCamos(first.weapon,c.category);if(camos.length!==c.tiles.length){note('tiles-unmapped',{category:c.category,tiles:c.tiles.length,camos:camos.length});continue;}
-     for(const [i,camo] of camos.entries())if(!c.tiles[i]){const r=onReward({id:camo.id,weapon:first.weapon,name:camo.name,slot:camo.slot,military:false});named.push(camo.name);if(r==='saved'){status.saved++;result='saved';}note('apply',{mode:'menu-tile',weapon:first.weapon,camo:camo.name,result:r});}
+     // Tiles appear in catalogue order. The game shows a fourth Completionist tile the catalogue does not name yet;
+     // the known camos map to the first tiles and an unlocked unknown tile is left alone rather than guessed.
+     const camos=groupCamos(first.weapon,c.category);if(!camos.length||camos.length>c.tiles.length){note('tiles-unmapped',{category:c.category,tiles:c.tiles.length,camos:camos.length});continue;}
+     if(camos.length<c.tiles.length)note('tiles-unnamed',{category:c.category,unnamed:c.tiles.length-camos.length,unlocked:c.tiles.slice(camos.length).filter(x=>!x).length});
+     for(const [i,camo] of camos.entries())if(!c.tiles[i]){const r=onReward({id:camo.id,weapon:first.weapon,name:camo.name,slot:camo.slot,military:false,reapply});named.push(camo.name);if(r==='saved'){status.saved++;result='saved';}note('apply',{mode:'menu-tile',weapon:first.weapon,camo:camo.name,result:r});}
     }
     note('apply',{mode:'menu',weapon:first.weapon,totals:agreed.map(c=>c.category+' '+c.current+'/'+c.target),result});
     const summary=agreed.map(c=>c.category.toLowerCase()+' '+c.current+'/'+c.target).join(' · ')+(named.length?' ('+named.join(', ')+')':'');
@@ -332,7 +346,8 @@
     report('watching',first.weapon+' '+(result==='failed'?'could not be saved':result==='already-recorded'?'already recorded; manual corrections preserved':'saved')+': '+summary+'.'+(agreed.some(c=>c.category==='MILITARY')?'':' Military total was not read.'));
     return;
    }
-   const lines=await readArea(run,'menu',screen.regions.column,{limit:16});if(!lines)return;
+   // Menu text lines are wide; sidebar icons and the level number are narrow and would use up the read budget.
+   const lines=await readArea(run,'menu',screen.regions.column,{limit:20,minAspect:3});if(!lines)return;
    area.read=area.prev;area.readAt=now();screen.attempts++;
    const decoded=V.decodeMenu(lines,catalog);
    status.lastReading=lines.map(l=>l.text+' ('+Math.round(l.confidence)+'%)').join('\n').slice(0,1600);
@@ -355,7 +370,7 @@
     if(V.decodeReward(got,[],catalog).issue!=='No single weapon name matched.'){screen.weaponLines=weaponLines=got;screen.weaponView=nameView;}
     else weaponLines=screen.weaponLines&&changed(nameView,screen.weaponView)<=.05?screen.weaponLines:got;
    }
-   const rewardLines=await readArea(run,'reward',screen.regions.reward,{order:'wide',limit:7,stop:l=>!!V.decodeReward(weaponLines,l,catalog).reward});if(!rewardLines)return;
+   const rewardLines=await readArea(run,'reward',screen.regions.reward,{order:'wide',limit:4,minAspect:2.5,stop:l=>!!V.decodeReward(weaponLines,l,catalog).reward});if(!rewardLines)return;
    area.read=area.prev;area.readAt=now();if(area.card){area.card.read=area.card.prev;area.card.readAt=now();}screen.attempts++;manual=false;
    const decoded=V.decodeReward(weaponLines,rewardLines,catalog);
    status.lastReading=['Weapon: '+weaponLines.map(l=>l.text).join(' / '),'Reward: '+rewardLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
@@ -377,7 +392,7 @@
    if(run!==generation||!status.running)return;
    let delay=SAMPLE_MS.none;
    if(busy){ticker.after(100,()=>tick(run));return;}
-   busy=true;
+   busy=true;const tickStart=now();
    try{
     if(!video||video.readyState<2||!video.videoWidth){report('waiting','Waiting for a visible game window.');return;}
     const t=now(),gap=lastLoopAt?t-lastLoopAt:0;lastLoopAt=t;largestGapMs=Math.max(largestGapMs,gap);if(gap>3000){longGaps.push({at:new Date().toISOString(),gapMs:Math.round(gap),visibility:document.visibilityState});if(longGaps.length>8)longGaps.shift();}
@@ -416,7 +431,7 @@
     if(screen.kind==='menu')await readMenu(run,W,H);else await readResults(run,W,H);
     if(pending&&!pending.at)pending.at=now();
    }catch(error){if(run===generation){stop();report('error','Recognition stopped: '+error.message+' Try Start tracking again.');}}
-   finally{busy=false;if(run===generation&&status.running)ticker.after(delay,()=>tick(run));}
+   finally{busy=false;status.tickMs+=now()-tickStart;if(run===generation&&status.running)ticker.after(delay,()=>tick(run));}
   }
 
   function release(){
@@ -431,7 +446,7 @@
    if(status.running)return;
    const run=++generation;release();
    events.length=0;longGaps.length=0;for(const o of [lastReadings,lastRejected])for(const k of Object.keys(o))delete o[k];
-   Object.assign(status,{running:true,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,confirmed:0,saved:0,width:0,height:0,frames:0,source:'',lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.'});
+   Object.assign(status,{running:true,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,prepMs:0,segmentMs:0,tickMs:0,confirmed:0,saved:0,width:0,height:0,frames:0,source:'',lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.'});
    lastLoopAt=0;largestGapMs=0;workerStarts=0;previousStatus='';strip=watch();
    report('starting','Choose the Call of Duty game window in the browser sharing dialog.');
    try{

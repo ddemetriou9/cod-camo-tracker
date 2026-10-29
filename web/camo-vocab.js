@@ -117,7 +117,9 @@
   for(const line of lines){
    const hit=locate(line,'MILITARY CAMO');
    if(!hit||hit.cost>1.5)continue;
-   const slot=Number(line.slice(hit.end).replace(/ /g,'').slice(0,1).replace(/./,c=>DIGIT[c]||c))-1;
+   // The number must be its own token and a real digit: "MILITARY CAMG" must never become Military 6 via G→6.
+   const next=line.slice(hit.end).trim().split(' ')[0]||'',rest=line.slice(hit.end);
+   const slot=/^\s/.test(rest)&&/^[1-8]$/.test(next)?Number(next)-1:-1;
    if(slot>=0&&slot<8)military=Math.max(military??-1,slot);else unreadable=true;
   }
   if(military!==null){

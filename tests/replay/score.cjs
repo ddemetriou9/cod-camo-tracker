@@ -77,7 +77,7 @@ function score(expected,{report,state,replay},{rate=1}={}){
  const recall=list=>list.length?list.filter(x=>x.caught).length/list.length:1;
  const menuRecall=recall(menuResults),rewardRecall=recall(rewardResults);
  const timing=report.timing||{},snapshot=report.snapshot||{};
- const resources={ocrReads:snapshot.reads??null,ocrBusyMs:snapshot.ocrBusyMs??null,workerStarts:timing.workerStarts??null,largestScanGapMs:timing.largestScanGapMs??null,deliveredFrames:replay.deliveredFrames,clipSeconds:replay.duration};
+ const resources={ocrReads:snapshot.reads??null,ocrBusyMs:snapshot.ocrBusyMs??null,prepMs:snapshot.prepMs??null,segmentMs:snapshot.segmentMs??null,tickMs:snapshot.tickMs??null,workerStarts:timing.workerStarts??null,largestScanGapMs:timing.largestScanGapMs??null,deliveredFrames:replay.deliveredFrames,clipSeconds:replay.duration};
  const pass=!falseUnlocks.length&&!wrongTotals.length&&!unexpectedTotals.length&&menuRecall>=THRESHOLDS.menuRecall&&rewardRecall>=THRESHOLDS.rewardRecall;
  const pct=x=>Math.round(x*100)+'%';
  lines.push(`Menus caught: ${menuResults.filter(m=>m.caught).length}/${menuResults.length} (${pct(menuRecall)}, need ${pct(THRESHOLDS.menuRecall)})`);

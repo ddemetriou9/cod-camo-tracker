@@ -64,4 +64,9 @@ assert.equal(reward(['SANG 9MM'],['MILITARY CAMO 3','CAMO','MILITARY CAMO 4','CA
 // Real SANG 9mm reads: a label split over two boxes with a stray border character.
 assert.equal(reward(['SANG 9MM'],['ill','PMILITARY CA','AMO 4','Qe, 4'])?.slot,3);
 assert.equal(weapon('XPILA'),null,'Short names still need a word boundary');
+// Real false unlock from the FiNN LMG recording: a half-visible label must not become a camo number.
+assert.equal(reward(['FINN LMG'],['MILITARY CAMG']),null,'G must not be read as 6');
+assert.equal(reward(['FINN LMG'],['MILITARY CAMO6']),null,'The number must be a separate token');
+assert.equal(reward(['FINN LMG'],['J MILITARY CAMO 2 |'])?.slot,1);
+assert.equal(reward(['FINN LMG'],['MILITARY CAMO 9']),null);
 console.log('camo-vocab: all checks passed');
