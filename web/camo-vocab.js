@@ -24,9 +24,11 @@
   let best=null;
   for(let j=1;j<=n;j++){
    const s=start[j],boundary=s===0||t[s-1]===' '||t[s]===' ';
-   if(!boundary)continue;
+   // Short patterns must start on a word boundary (so "PILA" cannot hide in "PILATES"); long phrases may
+   // carry one stray glued character from a label border, at a small cost.
+   if(!boundary&&m<8)continue;
    const endBoundary=j===n||t[j]===' ';
-   const cost=prev[j]+(endBoundary||m>4?0:1);
+   const cost=prev[j]+(endBoundary||m>4?0:1)+(boundary?0:.5);
    if(!best||cost<best.cost)best={cost,start:Math.max(0,s-1),end:j-1};
   }
   return best;
@@ -105,7 +107,11 @@
  function decodeReward(weaponLines,rewardLines,catalog){
   const weapon=rewardWeapon(weaponLines,catalog);
   if(!weapon)return {reward:null,issue:'No single weapon name matched.'};
-  const w=weapon.weapon.name,lines=rewardLines.map(l=>clean(l.text)).filter(Boolean);
+  const w=weapon.weapon.name,single=rewardLines.map(l=>clean(l.text)).filter(Boolean);
+  // A label can come back split across two neighbouring boxes ("MILITARY CA" / "AMO 4"), so also try each pair joined.
+  // OCR often repeats the letter at the split ("CA" + "AMO"), so a repeated seam character is also removed.
+  const seam=(a,b)=>{for(let k=Math.min(2,a.length,b.length);k>0;k--)if(a.slice(-k)===b.slice(0,k))return a+b.slice(k);return a+b;};
+  const lines=[...single,...single.slice(1).flatMap((l,i)=>[single[i]+' '+l,seam(single[i],l)])];
   // Several cards can sit side by side; the highest Military number covers the earlier ones (sequential unlocks).
   let military=null,unreadable=false;
   for(const line of lines){

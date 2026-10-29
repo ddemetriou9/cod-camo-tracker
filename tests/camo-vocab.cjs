@@ -61,4 +61,7 @@ assert.equal(V.anchorIn(lines('TOP PERFORMING WEAPON'))?.screen,'results');
 // Side-by-side cards: an attachment next to a camo, and two Military cards (highest wins).
 assert.equal(reward(['SANG 9MM','PISTOL'],['SZ ECHELON HOLO','OPTIC','MILITARY CAMO 3','CAMO'])?.slot,2);
 assert.equal(reward(['SANG 9MM'],['MILITARY CAMO 3','CAMO','MILITARY CAMO 4','CAMO'])?.slot,3);
+// Real SANG 9mm reads: a label split over two boxes with a stray border character.
+assert.equal(reward(['SANG 9MM'],['ill','PMILITARY CA','AMO 4','Qe, 4'])?.slot,3);
+assert.equal(weapon('XPILA'),null,'Short names still need a word boundary');
 console.log('camo-vocab: all checks passed');

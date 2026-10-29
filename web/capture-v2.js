@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-6';
+ const BUILD='2026-10-29-v2-7';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.48,.84,.40];// reward card row (fraction of frame): wide enough for several cards side by side
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -347,9 +347,15 @@
   async function readResults(run,W,H){
    // The weapon name changes less often than the cards; re-read it only when its area changed.
    const nameView=area.prev;
-   if(!screen.weaponLines||changed(nameView,screen.weaponView)>.1){const got=await readArea(run,'reward-weapon',screen.regions.weapon,{limit:4});if(!got)return;screen.weaponLines=got;screen.weaponView=nameView;}
-   const weaponLines=screen.weaponLines;
-   const rewardLines=await readArea(run,'reward',screen.regions.reward,{order:'wide',limit:5,stop:l=>!!V.decodeReward(weaponLines,l,catalog).reward});if(!rewardLines)return;
+   // A read taken mid-flash can come back unreadable: it never replaces the last good read, and that good read is
+   // reused only while the name area still looks the same (so a camo is never credited to the previous weapon).
+   let weaponLines=screen.weaponLines;
+   if(!weaponLines||changed(nameView,screen.weaponView)>FRESH){
+    const got=await readArea(run,'reward-weapon',screen.regions.weapon,{limit:4});if(!got)return;
+    if(V.decodeReward(got,[],catalog).issue!=='No single weapon name matched.'){screen.weaponLines=weaponLines=got;screen.weaponView=nameView;}
+    else weaponLines=screen.weaponLines&&changed(nameView,screen.weaponView)<=.05?screen.weaponLines:got;
+   }
+   const rewardLines=await readArea(run,'reward',screen.regions.reward,{order:'wide',limit:7,stop:l=>!!V.decodeReward(weaponLines,l,catalog).reward});if(!rewardLines)return;
    area.read=area.prev;area.readAt=now();if(area.card){area.card.read=area.card.prev;area.card.readAt=now();}screen.attempts++;manual=false;
    const decoded=V.decodeReward(weaponLines,rewardLines,catalog);
    status.lastReading=['Weapon: '+weaponLines.map(l=>l.text).join(' / '),'Reward: '+rewardLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
