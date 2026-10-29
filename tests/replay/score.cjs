@@ -88,6 +88,6 @@ function score(expected,{report,state,replay},{rate=1}={}){
  lines.push(`Wrong or unexpected totals: ${wrongTotals.length+unexpectedTotals.length}${[...wrongTotals,...unexpectedTotals].map(x=>'\n    '+x).join('')} (must be 0)`);
  if(missingTotals.length)lines.push(`Totals never saved: ${missingTotals.join(', ')}`);
  lines.push(`Resources: ${resources.ocrReads??'?'} OCR reads${resources.ocrBusyMs!=null?', OCR busy '+pct(resources.ocrBusyMs/1000/(resources.clipSeconds/rate)):''}, ${resources.workerStarts??'?'} OCR worker starts, largest scan gap ${resources.largestScanGapMs??'?'} ms, ${resources.deliveredFrames} frames delivered`);
- return {pass,events:(report.events||[]).slice(-80),lastRejected:report.lastRejected,lastReadings:report.lastReadings,menuRecall,rewardRecall,menuResults,rewardResults,falseUnlocks,missingUnlocks,wrongTotals,unexpectedTotals,missingTotals,resources,lines};
+ return {pass,replayStartedAt:replay.startedAt,events:(report.events||[]).slice(-200),lastRejected:report.lastRejected,lastReadings:report.lastReadings,menuRecall,rewardRecall,menuResults,rewardResults,falseUnlocks,missingUnlocks,wrongTotals,unexpectedTotals,missingTotals,resources,lines};
 }
 module.exports={expectedFromLabels,score,canonical};

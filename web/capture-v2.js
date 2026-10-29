@@ -7,11 +7,11 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-4';
+ const BUILD='2026-10-29-v2-5';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.22,.52,.56,.32];// centre-bottom reward card area (fraction of frame)
- const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02};// live menus animate (glowing selected tile), so 'still' tolerates a little motion
- const SAMPLE_MS={none:500,menu:500,results:250};
+ const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
+ const SAMPLE_MS={none:500,menu:500,results:150};
  const FORCE_MS=4000;// read anyway if an area keeps moving slightly (animated backgrounds) for this long
  const MENU_WHITELIST='ACDEILMNOPRSTY0123456789/ ',DIGITS=/\d/;
 
@@ -234,6 +234,8 @@
   async function readArea(run,mode,region,{order='top',limit=14,stop=()=>false}={}){
    const boxes=segment(video,region);
    if(order==='large')boxes.sort((a,b)=>(b[3]-b[1])-(a[3]-a[1]));
+   // Card labels are wide, short boxes; particle specks are tiny, so read the widest text-height boxes first.
+   if(order==='wide')boxes.sort((a,b)=>(b[2]-b[0])*((b[3]-b[1])<=60)-(a[2]-a[0])*((a[3]-a[1])<=60));
    const lines=[];note('segment',{mode,boxes:boxes.length});
    for(const box of boxes.slice(0,limit)){
     const got=await readLine(run,mode,box);if(!got)return null;
@@ -275,7 +277,8 @@
   function stillOnScreen(){
    const delta=changed(thumb(video,screen.headingRegion),screen.heading);
    screen.missing=delta>.3?screen.missing+1:0;// only a real screen change replaces most of the heading
-   if(screen.missing<3)return true;
+   // White flashes between results cards hide the heading for a moment; only a lasting absence closes the screen.
+   if(screen.missing<(screen.kind==='results'?10:3))return true;
    note('screen',{action:'leave',kind:screen.kind,seconds:Math.round((now()-screen.since)/1000)});
    // Card transitions can briefly replace the heading; look again quickly so the next card is not missed.
    if(screen.kind==='results')resultsUntil=now()+10000;
@@ -339,30 +342,29 @@
   }
 
   /* ---- after-match results ---- */
+  /* Results cards zoom and flash between reads, so a reward is confirmed by two separate reads (different
+     frames, at most RESULTS_CONFIRM_MS apart) that decode to the same camo for the same weapon. */
   async function readResults(run,W,H){
-   const u=screen.u;
-   if(pending&&pending.kind==='reward'){
-    const weapon=await readLine(run,'reward-confirm',pending.weaponLine.frame);if(!weapon)return;
-    const weaponLines=[weapon],rewardLines=[];
-    for(const line of pending.rewardLines){const got=await readLine(run,'reward-confirm',line.frame);if(!got)return;rewardLines.push(got);}
-    const second=V.decodeReward(weaponLines,rewardLines,catalog).reward,first=pending.reward;pending=null;
-    if(second?.id!==first.id){reject('reward','Confirmation read disagreed for '+first.weapon+' — '+first.name+'.',[...weaponLines,...rewardLines]);screen.retry=true;return;}
-    screen.retry=false;status.confirmed++;const result=onReward(first);if(result==='saved')status.saved++;
-    note('apply',{mode:'reward',weapon:first.weapon,camo:first.name,result});
-    report('watching',first.weapon+' — '+first.name+(result==='failed'?' could not be saved. Check browser storage.':result==='already-recorded'?' was already recorded; manual corrections preserved.':' recognised. Progress saved automatically.'));
-    return;
-   }
-   const weaponLines=await readArea(run,'reward-weapon',screen.regions.weapon,{limit:4});if(!weaponLines)return;
-   const rewardLines=await readArea(run,'reward',screen.regions.reward,{limit:8});if(!rewardLines)return;
+   // The weapon name changes less often than the cards; re-read it only when its area changed.
+   const nameView=area.prev;
+   if(!screen.weaponLines||changed(nameView,screen.weaponView)>.1){const got=await readArea(run,'reward-weapon',screen.regions.weapon,{limit:4});if(!got)return;screen.weaponLines=got;screen.weaponView=nameView;}
+   const weaponLines=screen.weaponLines;
+   const rewardLines=await readArea(run,'reward',screen.regions.reward,{order:'wide',limit:5,stop:l=>!!V.decodeReward(weaponLines,l,catalog).reward});if(!rewardLines)return;
    area.read=area.prev;area.readAt=now();if(area.card){area.card.read=area.card.prev;area.card.readAt=now();}screen.attempts++;manual=false;
    const decoded=V.decodeReward(weaponLines,rewardLines,catalog);
    status.lastReading=['Weapon: '+weaponLines.map(l=>l.text).join(' / '),'Reward: '+rewardLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
    // Most results cards are XP or attachments; only retry when a weapon was readable but its reward was not.
+   note('card',{weapon:decoded.weapon||decoded.reward?.weapon||null,reward:decoded.reward?.name||null,issue:decoded.issue||null,text:rewardLines.map(l=>l.text).join(' / ').slice(0,80)});
    if(!decoded.reward){reject('reward',decoded.issue,[...weaponLines,...rewardLines]);screen.retry=!!decoded.weapon&&decoded.issue!=='No camo type label on the card.';report('watching','Results visible'+(decoded.weapon?' for '+decoded.weapon:'')+'. Waiting for a camo reward card; attachments, XP and levels are ignored.');return;}
-   const norm=V.clean,rewardText=norm(decoded.reward.name),lines=rewardLines.filter(l=>{const t=norm(l.text);return t.includes('CAMO')||V.locate(t,decoded.reward.military?'MILITARY CAMO':rewardText)?.cost<=1.5;});
-   pending={kind:'reward',reward:decoded.reward,weaponLine:decoded.weaponLine,rewardLines:lines.length?lines:rewardLines,view:join(area.prev,area.card.prev)};
-   report('confirming',decoded.reward.weapon+' — '+decoded.reward.name+' read. Confirming…');
+   const r=decoded.reward,seen=screen.rewardSeen;
+   if(!seen||seen.id!==r.id||now()-seen.at>RESULTS_CONFIRM_MS){screen.rewardSeen={id:r.id,at:now()};screen.retry=true;report('confirming',r.weapon+' — '+r.name+' read. Confirming…');return;}
+   screen.rewardSeen=null;screen.retry=false;
+   if(screen.applied?.has(r.id))return;(screen.applied??=new Set()).add(r.id);
+   status.confirmed++;const result=onReward(r);if(result==='saved')status.saved++;
+   note('apply',{mode:'reward',weapon:r.weapon,camo:r.name,result});
+   report('watching',r.weapon+' — '+r.name+(result==='failed'?' could not be saved. Check browser storage.':result==='already-recorded'?' was already recorded; manual corrections preserved.':' recognised. Progress saved automatically.'));
   }
+
 
   /* ---- loop ---- */
   async function tick(run){
@@ -387,14 +389,18 @@
     let view,o,limits={still:STILL,fresh:FRESH};
     if(screen.kind==='menu'){view=thumb(video,screen.regions.column);o=observe(area,view,limits);}
     else{
-     // Results: the weapon name must be still; the card sits in animated particles, so it only has to be
-     // calm, and a different card (even the same weapon's next unlock) changes more than the particles do.
+     /* Results cards last about two seconds and zoom, flash white and sit in moving particles, so they
+        never truly settle. Read every RESULTS_READ_MS while the card differs from the last read, skipping
+        white flash frames. This only runs during the short results screen, never in gameplay. */
      const name=thumb(video,screen.regions.weapon),card=thumb(video,screen.regions.reward);
-     area.card??=watch();const a=observe(area,name),b=observe(area.card,card,RESULTS_LIMITS);
-     view=join(name,card);limits=RESULTS_LIMITS;
-     o={settled:a.settled&&b.settled,fresh:a.fresh||b.fresh,forced:a.forced||b.forced};
+     area.card??=watch();observe(area,name);const b=observe(area.card,card,RESULTS_LIMITS);
+     view=join(name,card);limits={still:1,fresh:RESULTS_CHANGE};
+     const flash=card.reduce((sum,v)=>sum+v,0)/card.length>185;
+     const due=now()-(area.readAt||0)>=RESULTS_READ_MS;
+     o={settled:!flash&&due,fresh:b.fresh||screen.retry,forced:false};
+     if(b.fresh)screen.retry=false;// a new card gets a fresh start
     }
-    if(o.settled&&o.fresh){screen.attempts=0;screen.retry=false;}
+    if(o.settled&&o.fresh&&screen.kind==='menu'){screen.attempts=0;screen.retry=false;}
     if(pending){
      if(changed(view,pending.view)>limits.fresh){note('pending-dropped',{kind:pending.kind});pending=null;return;}// moved on before confirmation
      if(now()-(pending.at||0)<(screen.kind==='menu'?400:150))return;
