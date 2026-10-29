@@ -1,0 +1,11 @@
+{
+  "name": "cod-camo-tracker",
+  "private": true,
+  "description": "Development tooling only; the site in web/ stays buildless.",
+  "scripts": {
+    "replay": "node tests/replay/replay.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
