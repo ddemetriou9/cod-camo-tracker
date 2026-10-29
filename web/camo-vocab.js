@@ -115,8 +115,9 @@
     const camo=catalog.challenges.find(c=>c.weapon===w&&c.slot===slot);
     return camo?{reward:{id:camo.id,weapon:w,name:camo.name,slot,military:true},weaponLine:weapon.line}:{reward:null,weapon:w,issue:'Military slot missing from catalogue.'};
   }}
-  const typed=lines.some(line=>line.split(' ').some(word=>locate(word,'CAMO')?.cost<=.35&&word.length<=5));
-  if(!typed)return {reward:null,weapon:w,issue:'No CAMO type label on the card.'};
+  // The type line under the name may say CAMO or the camo's group (the menu tooltip shows e.g. "SPECIAL").
+  const typed=lines.some(line=>line.split(' ').some(word=>(locate(word,'CAMO')?.cost<=.35&&word.length<=5)||['SPECIAL','PRESTIGE','COMPLETIONIST','MASTERY'].some(t=>word.length>=t.length-1&&locate(word,t)?.cost<=1)));
+  if(!typed)return {reward:null,weapon:w,issue:'No camo type label on the card.'};
   const named=[...catalog.challenges,...(catalog.extras||[])].filter(c=>c.weapon===w&&(c.slot>=8||c.checkKey));
   const hits=lines.map(line=>best(line,named,{label:c=>c.name,margin:1.5})).filter(Boolean);
   const ids=[...new Set(hits.map(h=>h.candidate.id))];

@@ -47,6 +47,8 @@ function expectedFromLabels(labels,catalog){
   const camo=[...catalog.challenges,...(catalog.extras||[])].find(c=>canonical(c.weapon)===w&&norm(c.name)===norm(reward.camo));
   if(!camo)throw Error(`Label names an unknown camo for ${weapon.name}: ${reward.camo}`);
   const keys=camo.slot>=0&&camo.slot<8?[...Array(camo.slot+1).keys()].map(slot=>w+'|'+slot):[camo.slot>=0?w+'|'+camo.slot:camo.checkKey];
+  // The app also records a Military reward as that weapon's Military total (at least slot+1 of 8).
+  if(camo.slot>=0&&camo.slot<8){const key=w+'|MILITARY';if(!totals[key]||totals[key].current<camo.slot+1)totals[key]={current:camo.slot+1,target:8};}
   keys.forEach(k=>required.add(k));rewards.push({index,weapon:weapon.name,camo:camo.name,at:reward.at,key:keys.at(-1)});
  }
  return {totals,required,menus,rewards};
@@ -86,6 +88,6 @@ function score(expected,{report,state,replay},{rate=1}={}){
  lines.push(`Wrong or unexpected totals: ${wrongTotals.length+unexpectedTotals.length}${[...wrongTotals,...unexpectedTotals].map(x=>'\n    '+x).join('')} (must be 0)`);
  if(missingTotals.length)lines.push(`Totals never saved: ${missingTotals.join(', ')}`);
  lines.push(`Resources: ${resources.ocrReads??'?'} OCR reads${resources.ocrBusyMs!=null?', OCR busy '+pct(resources.ocrBusyMs/1000/(resources.clipSeconds/rate)):''}, ${resources.workerStarts??'?'} OCR worker starts, largest scan gap ${resources.largestScanGapMs??'?'} ms, ${resources.deliveredFrames} frames delivered`);
- return {pass,events:(report.events||[]).slice(-80),lastRejected:report.lastRejected,menuRecall,rewardRecall,menuResults,rewardResults,falseUnlocks,missingUnlocks,wrongTotals,unexpectedTotals,missingTotals,resources,lines};
+ return {pass,events:(report.events||[]).slice(-80),lastRejected:report.lastRejected,lastReadings:report.lastReadings,menuRecall,rewardRecall,menuResults,rewardResults,falseUnlocks,missingUnlocks,wrongTotals,unexpectedTotals,missingTotals,resources,lines};
 }
 module.exports={expectedFromLabels,score,canonical};

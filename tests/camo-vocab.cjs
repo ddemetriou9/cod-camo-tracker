@@ -53,4 +53,9 @@ assert.equal(V.categoryIn('MODE MASTERY'),null);
 const patriot=V.decodeMenu(lines('PATRIOT XMR PROGRESSION','MODE MASTERY','55','MILITARY [8/8]','SPECIAL [2/3]','COMPLETIONIST [0/4]','PRESTIGE [8/4]','SPECIAL'),catalog);
 assert.equal(patriot.weapon,'Patriot XMR');
 assert.deepEqual(patriot.categories.map(c=>c.category+' '+c.current+'/'+c.target),['MILITARY 8/8','SPECIAL 2/3','COMPLETIONIST 0/4','PRESTIGE 0/4']);
+// Real Warlord after-match cards: the camo card unlocks, attachment cards never do.
+assert.equal(reward(['WARLORD','SHOTGUN'],['MILITARY CAMO 7','CAMO'])?.slot,6);
+assert.equal(reward(['WARLORD','SHOTGUN'],['SIMPAN-7 GRIP','REAR GRIP']),null);
+assert.equal(reward(['WARLORD','SHOTGUN'],['| SZ PRIMA-4 DOT J','OPTIC','| HEGRE']),null);
+assert.equal(V.anchorIn(lines('TOP PERFORMING WEAPON'))?.screen,'results');
 console.log('camo-vocab: all checks passed');

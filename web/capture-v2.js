@@ -7,10 +7,10 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-3';
+ const BUILD='2026-10-29-v2-4';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.22,.52,.56,.32];// centre-bottom reward card area (fraction of frame)
- const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32;// live menus animate (glowing selected tile), so 'still' tolerates a little motion
+ const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02};// live menus animate (glowing selected tile), so 'still' tolerates a little motion
  const SAMPLE_MS={none:500,menu:500,results:250};
  const FORCE_MS=4000;// read anyway if an area keeps moving slightly (animated backgrounds) for this long
  const MENU_WHITELIST='ACDEILMNOPRSTY0123456789/ ',DIGITS=/\d/;
@@ -192,7 +192,7 @@
 
  function create({catalog,onReward,onOverview=()=>{},onStatus}){
   let generation=0,stream=null,video=null,ocr=null,ocrStarting=null,ticker=null,busy=false;
-  let screen=null,strip=null,area=null,pending=null,manual=false;
+  let screen=null,strip=null,area=null,pending=null,manual=false,resultsUntil=0;
   const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
   const events=[],lastReadings={},lastRejected={},longGaps=[];
   let lastLoopAt=0,largestGapMs=0,workerStarts=0,previousStatus='',tickerKind='';
@@ -202,9 +202,9 @@
   function reject(mode,reason,lines){lastRejected[mode]={at:new Date().toISOString(),reason,lines:(lines||[]).slice(0,30).map(l=>({text:l.text.slice(0,120),confidence:Math.round(l.confidence)}))};if(events.at(-1)?.reason!==reason)note('parser-rejected',{mode,reason});}
   const watch=()=>({prev:null,read:null,calmSince:0,readAt:0});
   /* Settled: unchanged since the previous sample. Fresh: different from what was last read. */
-  function observe(w,t){
+  function observe(w,t,limits={still:STILL,fresh:FRESH}){
    const delta=changed(t,w.prev);w.prev=t;
-   const fresh=changed(t,w.read)>FRESH,settled=delta<=STILL,calm=delta<=CALM;
+   const fresh=changed(t,w.read)>limits.fresh,settled=delta<=limits.still,calm=delta<=CALM;
    if(!calm)w.calmSince=0;else if(!w.calmSince)w.calmSince=now();
    const forced=calm&&fresh&&w.calmSince&&now()-w.calmSince>=FORCE_MS&&now()-w.readAt>=FORCE_MS;
    return {settled,fresh,forced,delta};
@@ -264,7 +264,8 @@
     // Weapon heading and category totals sit in a column under the title.
     screen.regions={column:clampRegion([x0-u*2,y0+u*.8,Math.max(u*16,W*.2),H*.85-y0],W,H)};
    }else{
-    screen.regions={weapon:clampRegion([x0-u,y1,Math.max(u*20,W*.3),u*4.5],W,H),reward:clampRegion(fraction(REWARD_BAND,W,H),W,H)};
+    // The weapon name is about three header-heights tall and starts a little below the header.
+    screen.regions={weapon:clampRegion([x0-u,y1,Math.max(u*20,W*.3),u*8],W,H),reward:clampRegion(fraction(REWARD_BAND,W,H),W,H)};
    }
    area=watch();pending=null;
    status.layout=anchor.screen+' heading at '+Math.round(x0)+','+Math.round(y0)+' (text '+Math.round(u)+' px)';
@@ -276,6 +277,8 @@
    screen.missing=delta>.3?screen.missing+1:0;// only a real screen change replaces most of the heading
    if(screen.missing<3)return true;
    note('screen',{action:'leave',kind:screen.kind,seconds:Math.round((now()-screen.since)/1000)});
+   // Card transitions can briefly replace the heading; look again quickly so the next card is not missed.
+   if(screen.kind==='results')resultsUntil=now()+10000;
    screen=null;area=null;pending=null;strip=watch();status.layout='searching';return false;
   }
 
@@ -351,13 +354,13 @@
    }
    const weaponLines=await readArea(run,'reward-weapon',screen.regions.weapon,{limit:4});if(!weaponLines)return;
    const rewardLines=await readArea(run,'reward',screen.regions.reward,{limit:8});if(!rewardLines)return;
-   area.read=area.prev;area.readAt=now();screen.attempts++;manual=false;
+   area.read=area.prev;area.readAt=now();if(area.card){area.card.read=area.card.prev;area.card.readAt=now();}screen.attempts++;manual=false;
    const decoded=V.decodeReward(weaponLines,rewardLines,catalog);
    status.lastReading=['Weapon: '+weaponLines.map(l=>l.text).join(' / '),'Reward: '+rewardLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
    // Most results cards are XP or attachments; only retry when a weapon was readable but its reward was not.
-   if(!decoded.reward){reject('reward',decoded.issue,[...weaponLines,...rewardLines]);screen.retry=!!decoded.weapon&&decoded.issue!=='No CAMO type label on the card.';report('watching','Results visible'+(decoded.weapon?' for '+decoded.weapon:'')+'. Waiting for a camo reward card; attachments, XP and levels are ignored.');return;}
+   if(!decoded.reward){reject('reward',decoded.issue,[...weaponLines,...rewardLines]);screen.retry=!!decoded.weapon&&decoded.issue!=='No camo type label on the card.';report('watching','Results visible'+(decoded.weapon?' for '+decoded.weapon:'')+'. Waiting for a camo reward card; attachments, XP and levels are ignored.');return;}
    const norm=V.clean,rewardText=norm(decoded.reward.name),lines=rewardLines.filter(l=>{const t=norm(l.text);return t.includes('CAMO')||V.locate(t,decoded.reward.military?'MILITARY CAMO':rewardText)?.cost<=1.5;});
-   pending={kind:'reward',reward:decoded.reward,weaponLine:decoded.weaponLine,rewardLines:lines.length?lines:rewardLines,view:area.prev};
+   pending={kind:'reward',reward:decoded.reward,weaponLine:decoded.weaponLine,rewardLines:lines.length?lines:rewardLines,view:join(area.prev,area.card.prev)};
    report('confirming',decoded.reward.weapon+' — '+decoded.reward.name+' read. Confirming…');
   }
 
@@ -377,15 +380,23 @@
      const o=observe(strip,thumb(video,clampRegion(fraction(STRIP,W,H),W,H)));
      if((o.settled&&o.fresh)||o.forced||manual){await findScreen(run,W,H,manual?'manual':o.forced?'forced':'settled');if(manual&&!screen)manual=false;}
      else if(status.phase!=='watching')report('watching','Watching. Small checks only while the game is moving; OCR waits for a menu or results screen.');
-     delay=screen?SAMPLE_MS[screen.kind]:SAMPLE_MS.none;return;
+     delay=screen?SAMPLE_MS[screen.kind]:now()<resultsUntil?SAMPLE_MS.results:SAMPLE_MS.none;return;
     }
     if(!stillOnScreen()){report('watching','Screen closed. Watching for the next camo menu or results.');return;}
     delay=SAMPLE_MS[screen.kind];
-    const view=screen.kind==='menu'?thumb(video,screen.regions.column):join(thumb(video,screen.regions.weapon),thumb(video,screen.regions.reward));
-    const o=observe(area,view);
+    let view,o,limits={still:STILL,fresh:FRESH};
+    if(screen.kind==='menu'){view=thumb(video,screen.regions.column);o=observe(area,view,limits);}
+    else{
+     // Results: the weapon name must be still; the card sits in animated particles, so it only has to be
+     // calm, and a different card (even the same weapon's next unlock) changes more than the particles do.
+     const name=thumb(video,screen.regions.weapon),card=thumb(video,screen.regions.reward);
+     area.card??=watch();const a=observe(area,name),b=observe(area.card,card,RESULTS_LIMITS);
+     view=join(name,card);limits=RESULTS_LIMITS;
+     o={settled:a.settled&&b.settled,fresh:a.fresh||b.fresh,forced:a.forced||b.forced};
+    }
     if(o.settled&&o.fresh){screen.attempts=0;screen.retry=false;}
     if(pending){
-     if(changed(view,pending.view)>FRESH){note('pending-dropped',{kind:pending.kind});pending=null;return;}// moved on before confirmation
+     if(changed(view,pending.view)>limits.fresh){note('pending-dropped',{kind:pending.kind});pending=null;return;}// moved on before confirmation
      if(now()-(pending.at||0)<(screen.kind==='menu'?400:150))return;
     }else if(!(manual||o.forced||(o.settled&&(o.fresh||(screen.retry&&screen.attempts<3)))))return;
     if(screen.kind==='menu')await readMenu(run,W,H);else await readResults(run,W,H);
