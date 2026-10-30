@@ -7,231 +7,297 @@
       "class": "Assault rifles",
       "id": "HAN86",
       "maxLevel": 72,
-      "image": "assets/f6346379b9205117.webp"
+      "image": "assets/f6346379b9205117.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/han-86-mw4"
     },
     {
       "name": "M4",
       "class": "Assault rifles",
       "id": "M4",
       "maxLevel": 72,
-      "image": "assets/f7d39590745ad4d2.webp"
+      "image": "assets/f7d39590745ad4d2.webp",
+      "unlockLevel": 14,
+      "loadout": "https://wzstats.gg/best-loadouts/m4-mw4"
     },
     {
       "name": "Hyeon Burst",
       "class": "Assault rifles",
       "id": "HYEONBURST",
       "maxLevel": 68,
-      "image": "assets/9955b07bdda5682d.webp"
+      "image": "assets/9955b07bdda5682d.webp",
+      "unlockLevel": 21,
+      "loadout": "https://wzstats.gg/best-loadouts/hyeon-burst-mw4"
     },
     {
       "name": "Patriot XMR",
       "class": "Assault rifles",
       "id": "PATRIOTXMR",
       "maxLevel": 72,
-      "image": "assets/0a5fd8898e4e333f.webp"
+      "image": "assets/0a5fd8898e4e333f.webp",
+      "unlockLevel": 27,
+      "loadout": "https://wzstats.gg/best-loadouts/partriot-xmr-mw4"
     },
     {
       "name": "Kastov 762",
       "class": "Assault rifles",
       "id": "KASTOV762",
       "maxLevel": 68,
-      "image": "assets/bb3bf12fe325fcce.webp"
+      "image": "assets/bb3bf12fe325fcce.webp",
+      "unlockLevel": 34,
+      "loadout": "https://wzstats.gg/best-loadouts/kastov-762-mw4"
     },
     {
       "name": "Oden",
       "class": "Assault rifles",
       "id": "ODEN",
       "maxLevel": 65,
-      "image": "assets/5bd4fe2cd8da5f54.webp"
+      "image": "assets/5bd4fe2cd8da5f54.webp",
+      "unlockLevel": 39,
+      "loadout": "https://wzstats.gg/best-loadouts/oden-mw4"
     },
     {
       "name": "Axion",
       "class": "Assault rifles",
       "id": "AXION",
       "maxLevel": 69,
-      "image": "assets/7de27ff441401c26.webp"
+      "image": "assets/7de27ff441401c26.webp",
+      "unlockLevel": 52,
+      "loadout": "https://wzstats.gg/best-loadouts/axion-mw4"
     },
     {
       "name": "Cronen Squall",
       "class": "Assault rifles",
       "id": "CRONENSQUALL",
       "maxLevel": 67,
-      "image": null
+      "image": null,
+      "unlockLevel": 55,
+      "loadout": "https://wzstats.gg/best-loadouts/cronen-squall-mw4"
     },
     {
       "name": "ISO Nightshade",
       "class": "Submachine guns",
       "id": "ISONIGHTSHADE",
       "maxLevel": 64,
-      "image": "assets/ab434237e1596a9b.webp"
+      "image": "assets/ab434237e1596a9b.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/iso-nightshade-mw4"
     },
     {
       "name": "VEL 46",
       "class": "Submachine guns",
       "id": "VEL46",
       "maxLevel": 60,
-      "image": "assets/a61fe1aa242e8ce2.webp"
+      "image": "assets/a61fe1aa242e8ce2.webp",
+      "unlockLevel": 5,
+      "loadout": "https://wzstats.gg/best-loadouts/vel-46-mw4"
     },
     {
       "name": "Wz.55 Striga",
       "class": "Submachine guns",
       "id": "WZ55STRIGA",
       "maxLevel": 60,
-      "image": "assets/d3a274705bdcc91c.webp"
+      "image": "assets/d3a274705bdcc91c.webp",
+      "unlockLevel": 18,
+      "loadout": "https://wzstats.gg/best-loadouts/wz55-striga-mw4"
     },
     {
       "name": "PPSh-41",
       "class": "Submachine guns",
       "id": "PPSH41",
       "maxLevel": 62,
-      "image": "assets/9910414207235b1d.webp"
+      "image": "assets/9910414207235b1d.webp",
+      "unlockLevel": 30,
+      "loadout": "https://wzstats.gg/best-loadouts/ppsh-41-mw4"
     },
     {
       "name": "X-58 Nyx",
       "class": "Submachine guns",
       "id": "X58NYX",
       "maxLevel": 53,
-      "image": "assets/1f8fb0efc6847f11.webp"
+      "image": "assets/1f8fb0efc6847f11.webp",
+      "unlockLevel": 46,
+      "loadout": "https://wzstats.gg/best-loadouts/x-58-nyx-mw4"
     },
     {
       "name": "Rezi 12",
       "class": "Shotguns",
       "id": "REZI12",
       "maxLevel": 60,
-      "image": "assets/d6e86ddf12c8dc63.webp"
+      "image": "assets/d6e86ddf12c8dc63.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/rezi-12-mw4"
     },
     {
       "name": "Warlord",
       "class": "Shotguns",
       "id": "WARLORD",
       "maxLevel": 60,
-      "image": "assets/f18cd9a7a25492df.webp"
+      "image": "assets/f18cd9a7a25492df.webp",
+      "unlockLevel": 32,
+      "loadout": "https://wzstats.gg/best-loadouts/warlord-mw4"
     },
     {
       "name": "FiNN LMG",
       "class": "Light machine guns",
       "id": "FINNLMG",
       "maxLevel": 59,
-      "image": "assets/6c36a33e45d7c7e9.webp"
+      "image": "assets/6c36a33e45d7c7e9.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/finn-lmg-mw4"
     },
     {
       "name": "Type 73",
       "class": "Light machine guns",
       "id": "TYPE73",
       "maxLevel": 65,
-      "image": "assets/b5bf2fb515fac68f.webp"
+      "image": "assets/b5bf2fb515fac68f.webp",
+      "unlockLevel": 9,
+      "loadout": "https://wzstats.gg/best-loadouts/type-73-mw4"
     },
     {
       "name": "APOC-338",
       "class": "Light machine guns",
       "id": "APOC338",
       "maxLevel": 56,
-      "image": "assets/80533a4973afec80.webp"
+      "image": "assets/80533a4973afec80.webp",
+      "unlockLevel": 44,
+      "loadout": "https://wzstats.gg/best-loadouts/apoc-338-mw4"
     },
     {
       "name": "MAR-9",
       "class": "Marksman rifles",
       "id": "MAR9",
       "maxLevel": 73,
-      "image": "assets/4d3617748b00fbc7.webp"
+      "image": "assets/4d3617748b00fbc7.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/mar-9-mw4"
     },
     {
       "name": "Oris 8.6",
       "class": "Marksman rifles",
       "id": "ORIS86",
       "maxLevel": 70,
-      "image": "assets/df1b033d0c80eefc.webp"
+      "image": "assets/df1b033d0c80eefc.webp",
+      "unlockLevel": 11,
+      "loadout": "https://wzstats.gg/best-loadouts/oris-86-mw4"
     },
     {
       "name": "Mosin-Nagant",
       "class": "Marksman rifles",
       "id": "MOSINNAGANT",
       "maxLevel": 69,
-      "image": "assets/a38a6a6818c5cbf6.webp"
+      "image": "assets/a38a6a6818c5cbf6.webp",
+      "unlockLevel": 36,
+      "loadout": "https://wzstats.gg/best-loadouts/mosin-nagant-mw4"
     },
     {
       "name": "KG-7 Vulcan",
       "class": "Sniper rifles",
       "id": "KG7VULCAN",
       "maxLevel": 75,
-      "image": "assets/ae0f72f9cbc11f42.webp"
+      "image": "assets/ae0f72f9cbc11f42.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/kg-7-vulcan-mw4"
     },
     {
       "name": "Astaroth .57",
       "class": "Sniper rifles",
       "id": "ASTAROTH57",
       "maxLevel": 54,
-      "image": "assets/83226914480a3d7d.webp"
+      "image": "assets/83226914480a3d7d.webp",
+      "unlockLevel": 25,
+      "loadout": "https://wzstats.gg/best-loadouts/astaroth-57-mw4"
     },
     {
       "name": "Signal 50",
       "class": "Sniper rifles",
       "id": "SIGNAL50",
       "maxLevel": 74,
-      "image": "assets/aa2a2217229c202c.webp"
+      "image": "assets/aa2a2217229c202c.webp",
+      "unlockLevel": 50,
+      "loadout": "https://wzstats.gg/best-loadouts/signal-50-mw4"
     },
     {
       "name": "SANG 9mm",
       "class": "Pistols",
       "id": "SANG9MM",
       "maxLevel": 38,
-      "image": "assets/32293b213ec71c82.webp"
+      "image": "assets/32293b213ec71c82.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/sang-9mm-mw4"
     },
     {
       "name": "Krait P68",
       "class": "Pistols",
       "id": "KRAITP68",
       "maxLevel": 38,
-      "image": "assets/61dc1ad1ff3c0bf8.webp"
+      "image": "assets/61dc1ad1ff3c0bf8.webp",
+      "unlockLevel": 7,
+      "loadout": "https://wzstats.gg/best-loadouts/krait-p68-mw4"
     },
     {
       "name": ".50 GS",
       "class": "Pistols",
       "id": "50GS",
       "maxLevel": 37,
-      "image": "assets/179e485070d9dacd.webp"
+      "image": "assets/179e485070d9dacd.webp",
+      "unlockLevel": 41,
+      "loadout": "https://wzstats.gg/best-loadouts/50-gs-mw4"
     },
     {
       "name": "Mojave .357",
       "class": "Pistols",
       "id": "MOJAVE357",
       "maxLevel": 44,
-      "image": null
+      "image": null,
+      "unlockLevel": 48,
+      "loadout": "https://wzstats.gg/best-loadouts/mojave-357-mw4"
     },
     {
       "name": "PILA",
       "class": "Launchers",
       "id": "PILA",
       "maxLevel": 46,
-      "image": "assets/1bd69178d1ecdb8d.webp"
+      "image": "assets/1bd69178d1ecdb8d.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/pila-mw4"
     },
     {
       "name": "RPG-8",
       "class": "Launchers",
       "id": "RPG8",
       "maxLevel": 46,
-      "image": "assets/0ca00a60cbe37d16.webp"
+      "image": "assets/0ca00a60cbe37d16.webp",
+      "unlockLevel": 23,
+      "loadout": "https://wzstats.gg/best-loadouts/rpg-8-mw4"
     },
     {
       "name": "JOKR",
       "class": "Launchers",
       "id": "JOKR",
       "maxLevel": 46,
-      "image": "assets/63601d93d0bcdd80.webp"
+      "image": "assets/63601d93d0bcdd80.webp",
+      "unlockLevel": 43,
+      "loadout": "https://wzstats.gg/best-loadouts/jokr-mw4"
     },
     {
       "name": "PM-40 Anvil",
       "class": "Launchers",
       "id": "PM40ANVIL",
       "maxLevel": 46,
-      "image": null
+      "image": null,
+      "unlockLevel": 54,
+      "loadout": "https://wzstats.gg/best-loadouts/pm-40-anvil-mw4"
     },
     {
       "name": "FSS Carbon Edge 1095",
       "class": "Melee",
       "id": "FSSCARBONEDGE1095",
       "maxLevel": 46,
-      "image": "assets/df1b033d0c80eefc.webp"
+      "image": "assets/df1b033d0c80eefc.webp",
+      "unlockLevel": 4,
+      "loadout": "https://wzstats.gg/best-loadouts/fss-carbon-edge-1095-mw4"
     }
   ],
   "challenges": [
@@ -10982,12 +11048,25 @@
     {
       "name": "Additional numeric military milestones",
       "url": "https://upblazed.com/tools/mw4-camo-tracker"
+    },
+    {
+      "name": "Weapon unlock player levels, community guide",
+      "url": "https://allthings.how/modern-warfare-4-how-to-unlock-all-33-weapons/"
+    },
+    {
+      "name": "Weapon unlock player levels, second community guide (agrees)",
+      "url": "https://mypandaplay.com/modern-warfare-4/guides/mw4-weapon-unlock-levels/"
+    },
+    {
+      "name": "Best loadouts per weapon (linked, not copied)",
+      "url": "https://wzstats.gg/"
     }
   ],
   "notes": [
     "Community levels and objectives can be outdated. The source flags estimated unlock levels, some pistol/melee counts, FiNN special 3 MP and KG-7 special 1 DMZ.",
     "Military entries retain numbered labels where individual in-game names are not independently verified.",
-    "Official images are reference sheets, not a fabricated per-camo preview. Game artwork belongs to Activision."
+    "Official images are reference sheets, not a fabricated per-camo preview. Game artwork belongs to Activision.",
+    "Weapon unlock levels are player levels from two community guides that agree; one flags a few as unconfirmed before launch. Classic Prestige relocks level unlocks; Regular Prestige keeps them."
   ],
   "extras": [
     {

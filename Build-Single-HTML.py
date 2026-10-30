@@ -36,7 +36,7 @@ assert 'fetch(' not in app and 'companion' not in app and 'automationAction' not
 catalog = (WEB / 'catalog.js').read_text(encoding='utf-8-sig')
 payload = 'window.NATIVE_MIGRATION=null;\n' + catalog + '\n' + '(()=>{const images=' + json.dumps(assets, separators=(',', ':')) + ';for(const item of window.CAMO_CATALOG.images){item.path=images[item.path];}for(const weapon of window.CAMO_CATALOG.weapons){if(weapon.image)weapon.image=images[weapon.image];}})();\n' + app
 payload = re.sub(r'</script', r'<\\/script', payload, flags=re.I)
-html = re.sub(r'<script src="catalog.js"></script><script src="migration.js"></script><script src="app.js(?:\?[^\"]*)?"></script>', lambda _: '<script>\n' + payload + '\n</script>', html)
+html = re.sub(r'<script src="catalog.js(?:\?[^\"]*)?"></script><script src="migration.js"></script><script src="app.js(?:\?[^\"]*)?"></script>', lambda _: '<script>\n' + payload + '\n</script>', html)
 html = re.sub(r'<button id="automation".*?</button>', '<span class="manual-edition" style="align-self:center;font-size:12px;color:var(--muted)">Manual edition</span>', html)
 html = html.replace('YOUR LOCAL CAMO COMPANION', 'MANUAL EDITION · ONE HTML FILE')
 html = html.replace('No account. No analytics. Screenshots stay optional.', 'Manual tracking. All graphics included. Export a plan to back up your progress.')
