@@ -70,7 +70,7 @@
       "class": "Assault rifles",
       "id": "CRONENSQUALL",
       "maxLevel": 67,
-      "image": null,
+      "image": "assets/0f92c70a81c302c1.webp",
       "unlockLevel": 55,
       "loadout": "https://wzstats.gg/best-loadouts/cronen-squall-mw4"
     },
@@ -250,7 +250,7 @@
       "class": "Pistols",
       "id": "MOJAVE357",
       "maxLevel": 44,
-      "image": null,
+      "image": "assets/eb06e299b6656985.webp",
       "unlockLevel": 48,
       "loadout": "https://wzstats.gg/best-loadouts/mojave-357-mw4"
     },
@@ -286,7 +286,7 @@
       "class": "Launchers",
       "id": "PM40ANVIL",
       "maxLevel": 46,
-      "image": null,
+      "image": "assets/effecfda833c538d.webp",
       "unlockLevel": 54,
       "loadout": "https://wzstats.gg/best-loadouts/pm-40-anvil-mw4"
     },
@@ -295,7 +295,7 @@
       "class": "Melee",
       "id": "FSSCARBONEDGE1095",
       "maxLevel": 46,
-      "image": "assets/df1b033d0c80eefc.webp",
+      "image": "assets/cdc9320d197414ba.webp",
       "unlockLevel": 4,
       "loadout": "https://wzstats.gg/best-loadouts/fss-carbon-edge-1095-mw4"
     }
@@ -10783,7 +10783,7 @@
       "id": "cdc9320d197414ba.webp",
       "path": "assets/cdc9320d197414ba.webp",
       "url": "https://imgs.callofduty.com/content/dam/atvi/callofduty/cod-touchui/blog/body/mw4/rfl-ops-and-weapons/MW4-RFL-OPS-WEAPONS-041.webp",
-      "caption": "Official weapons reference sheet",
+      "caption": "FSS Carbon Edge 1095 / official weapon reference",
       "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-launch-multiplayer-operators-weapons-equipment-create-a-class",
       "kind": "weapons",
       "bytes": 76570
@@ -11030,6 +11030,33 @@
       "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige",
       "kind": "progression",
       "bytes": 212140
+    },
+    {
+      "id": "0f92c70a81c302c1.webp",
+      "path": "assets/0f92c70a81c302c1.webp",
+      "url": "https://imgs.callofduty.com/content/dam/atvi/callofduty/cod-touchui/blog/body/mw4/rfl-ops-and-weapons/MW4-RFL-OPS-WEAPONS-016.webp",
+      "caption": "Cronen Squall / official weapon reference",
+      "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-launch-multiplayer-operators-weapons-equipment-create-a-class",
+      "kind": "weapons",
+      "bytes": 122042
+    },
+    {
+      "id": "eb06e299b6656985.webp",
+      "path": "assets/eb06e299b6656985.webp",
+      "url": "https://imgs.callofduty.com/content/dam/atvi/callofduty/cod-touchui/blog/body/mw4/rfl-ops-and-weapons/MW4-RFL-OPS-WEAPONS-036.webp",
+      "caption": "Mojave .357 / official weapon reference",
+      "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-launch-multiplayer-operators-weapons-equipment-create-a-class",
+      "kind": "weapons",
+      "bytes": 100574
+    },
+    {
+      "id": "effecfda833c538d.webp",
+      "path": "assets/effecfda833c538d.webp",
+      "url": "https://imgs.callofduty.com/content/dam/atvi/callofduty/cod-touchui/blog/body/mw4/rfl-ops-and-weapons/MW4-RFL-OPS-WEAPONS-040.webp",
+      "caption": "PM-40 Anvil / official weapon reference",
+      "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-launch-multiplayer-operators-weapons-equipment-create-a-class",
+      "kind": "weapons",
+      "bytes": 113474
     }
   ],
   "sources": [
