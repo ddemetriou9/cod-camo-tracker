@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-31-v2-12';
+ const BUILD='2026-10-31-v2-13';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -102,7 +102,7 @@
  }
  /* Camo tiles directly under a category label, found from texture/contrast. Used for Military, whose tiles are
     always textured; returns null unless exactly the expected rows×columns are found. */
- function detectTiles(source,label,bottom,cols,rows,W,H){
+ function detectTiles(source,label,bottom,cols,rows,W,H,{fit=false}={}){
   const h=Math.max(6,label[3]-label[1]),region=clampRegion([label[0]-h*.6,label[3]+h*.2,h*31,bottom-label[3]-h*.3],W,H);
   const [rx,ry,w,ht]=region;if(ht<h*2.5)return null;
   const p=draw(source,region,w,ht).getContext('2d').getImageData(0,0,w,ht).data,g=new Uint8Array(w*ht);
@@ -111,8 +111,10 @@
   for(let y=1;y<ht;y++)for(let x=1;x<w;x++){const i=y*w+x;on[i]=Math.abs(g[i]-g[i-1])>20||Math.abs(g[i]-g[i-w])>20||Math.abs(g[i]-background)>22?1:0;}
   const runsOf=(count,len,min)=>{const d=Array.from({length:len},(_,i)=>count(i)),top=[...d].sort((a,b)=>b-a)[Math.floor(len*.1)]||0,thr=Math.max(.15,top*.5),out=[];
    for(let i=0;i<len;){if(d[i]<thr){i++;continue;}let j=i;while(j<len&&d[j]>=thr)j++;if(j-i>=min)out.push([i,j]);i=j;}return out;};
+  const fitted=()=>fitGrid(on,w,ht,h,cols,rows,rx,ry);
+  if(fit)return fitted();
   const xs=runsOf(x=>{let s=0;for(let y=0;y<ht;y++)s+=on[y*w+x];return s/ht;},w,h*2.5);
-  if(xs.length<2)return null;
+  if(xs.length<2)return fitted();
   const rowEdges=y=>{let s=0;for(let x=xs[0][0];x<xs[1][1];x++)s+=on[y*w+x];return s/(xs[1][1]-xs[0][0]);};
   let ys=runsOf(rowEdges,ht,h*2.5);
   if(ys.length!==rows){
@@ -121,15 +123,39 @@
       and each row must be textured. */
    const size=xs[0][1]-xs[0][0],gap=xs[1][0]-xs[0][1],d=Array.from({length:ht},(_,y)=>rowEdges(y));
    const top=[...d].sort((a,b)=>b-a)[Math.floor(ht*.1)]||0,thr=Math.max(.15,top*.5),y0=d.findIndex(v=>v>=thr);
-   if(Math.abs(xs[1][1]-xs[1][0]-size)>size*.15||gap<0||gap>size*.5||y0<0||y0+rows*size+(rows-1)*gap>ht+size*.1)return null;
+   if(Math.abs(xs[1][1]-xs[1][0]-size)>size*.15||gap<0||gap>size*.5||y0<0||y0+rows*size+(rows-1)*gap>ht+size*.1)return fitted();
    ys=[...Array(rows).keys()].map(k=>[y0+k*(size+gap),y0+k*(size+gap)+size]);
-   if(ys.some(([a,b])=>{let s=0;for(let y=a;y<Math.min(b,ht);y++)s+=d[y];return s/(Math.min(b,ht)-a)<thr*.6;}))return null;
+   if(ys.some(([a,b])=>{let s=0;for(let y=a;y<Math.min(b,ht);y++)s+=d[y];return s/(Math.min(b,ht)-a)<thr*.6;}))return fitted();
   }
   // Tiles are equal squares: size from the row height, spacing from the first two columns (later columns can
   // merge with neighbouring artwork), then the grid is laid out from the first tile.
   const size=ys.map(([a,b])=>b-a).sort((a,b)=>a-b)[ys.length>>1],gap=xs[1][0]-xs[0][0]-size;
-  if(Math.abs(xs[0][1]-xs[0][0]-size)>size*.2||gap<0||gap>size*.5||rx+xs[0][0]+cols*size+(cols-1)*gap>W)return null;
+  if(Math.abs(xs[0][1]-xs[0][0]-size)>size*.2||gap<0||gap>size*.5||rx+xs[0][0]+cols*size+(cols-1)*gap>W)return fitted();
   return ys.flatMap(([ya])=>[...Array(cols).keys()].map(i=>{const x=rx+xs[0][0]+i*(size+gap);return [x,ry+ya,x+size,ry+ya+size];}));
+ }
+ /* Fallback when the tiles cannot be picked out one by one (the cursor's tile is drawn inset in a green glow,
+    smooth camos have few edges): fit the known layout, rows×cols equal squares with gaps of 16/93 of a tile
+    (measured at 1080p), at the size and position where the squares hold the most texture and the gaps the least.
+    The first tile starts level with the label; the square size is searched around 4.9 label heights. */
+ function fitGrid(on,w,ht,h,cols,rows,rx,ry){
+  const I=new Float64Array((w+1)*(ht+1)),rs=w+1;
+  for(let y=0;y<ht;y++){let a=0;for(let x=0;x<w;x++){a+=on[y*w+x];I[(y+1)*rs+x+1]=I[y*rs+x+1]+a;}}
+  const sum=(x,y,bw,bh)=>{x=Math.max(0,Math.round(x));y=Math.max(0,Math.round(y));const x1=Math.min(w,Math.round(x+bw)),y1=Math.min(ht,Math.round(y+bh));return x1>x&&y1>y?[I[y1*rs+x1]-I[y*rs+x1]-I[y1*rs+x]+I[y*rs+x],(x1-x)*(y1-y)]:[0,0];};
+  let best=null;
+  for(let size=Math.round(h*3.8);size<=Math.round(h*6);size++){
+   const gap=size*16/93,gw=cols*size+(cols-1)*gap,gh=rows*size+(rows-1)*gap;if(gh>ht+size*.1)continue;
+   for(let x0=Math.max(0,Math.round(h*.1));x0<=Math.round(h*1.1);x0++)for(let y0=0;y0<=Math.min(ht-gh+size*.1,h*1.5);y0++){
+    let inS=0,inN=0,gapS=0,gapN=0;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const [s1,n1]=sum(x0+c*(size+gap)+size*.08,y0+r*(size+gap)+size*.08,size*.84,size*.84);inS+=s1;inN+=n1;}
+    for(let c=1;c<cols;c++){const [s1,n1]=sum(x0+c*(size+gap)-gap*.8,y0,gap*.6,gh);gapS+=s1;gapN+=n1;}
+    for(let r=1;r<rows;r++){const [s1,n1]=sum(x0,y0+r*(size+gap)-gap*.8,gw,gap*.6);gapS+=s1;gapN+=n1;}
+    if(!inN||!gapN)continue;const inside=inS/inN,between=gapS/gapN,score=inside-between;
+    if(!best||score>best.score)best={score,inside,size,gap,x0,y0};
+   }
+  }
+  if(!best||best.inside<.25||best.score<.15)return null;
+  const {size,gap,x0,y0}=best;
+  return [...Array(rows).keys()].flatMap(r=>[...Array(cols).keys()].map(c=>{const x=rx+x0+c*(size+gap),y=ry+y0+r*(size+gap);return [x,y,x+size,y+size];}));
  }
  /* Every camo group spans the same row width with the same gap between tiles (measured on Military), so the
     tiles of the other groups follow from their column count, even when a tile is too dark to detect. */

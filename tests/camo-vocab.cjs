@@ -77,6 +77,11 @@ assert.deepEqual(total('PRESTIGE [6/4]','PRESTIGE'),{current:0,target:4});
 assert.deepEqual(total('COMPLETIONIST (6/4)','COMPLETIONIST'),{current:0,target:4});
 assert.equal(V.counter('MILITARY [6/8]','MILITARY').zeroAlt,true);
 assert.equal(V.counter('MILITARY [3/8]','MILITARY').zeroAlt,undefined);
+// Real .50 GS menu read (live report): the slashed zero read as 8 in the tab and in the totals.
+{const m=V.decodeMenu(lines('Wwriiviw','o_o!','Zs 8','-58 GS PROGRESSION','MODE MASTERY','MILITARY [8/8]','SPECIAL [1/3]','COMPLETIONIST [0/4]','PRESTIGE [8/4]'),catalog);
+ assert.equal(m.weapon,'.50 GS');assert.deepEqual(m.categories.map(c=>c.category+' '+c.current+'/'+c.target),['MILITARY 8/8','SPECIAL 1/3','COMPLETIONIST 0/4','PRESTIGE 0/4']);}
+// Real .50 GS tab: the slashed zero read as 8.
+assert.equal(V.menuTab(lines('.58 GS PROGRESSION','MODE MASTERY'),catalog)?.weapon,'.50 GS');
 // Real clipped tab from the knife menu.
 assert.equal(V.menuTab(lines('‘ARBON EDGE 1895 PROGRESSION'),catalog)?.weapon,'FSS Carbon Edge 1095');
 // Real clipped tab from the knife menu.

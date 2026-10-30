@@ -4,8 +4,9 @@
 (function(root){
  'use strict';
  const clean=text=>String(text||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ');
- // Glyph pairs OCR commonly swaps on game fonts cost less than an unrelated substitution.
- const CONFUSABLE=new Set(['O0','D0','Q0','I1','L1','IL','S5','B8','Z2','G6','T7','A4','UV','NM','CG','EF','HN','RP'].flatMap(p=>[p,p[1]+p[0]]));
+ // Glyph pairs OCR commonly swaps on game fonts cost less than an unrelated substitution. The game's slashed zero
+ // reads as 8 or 6 (".50 GS" → ".58 GS", "1095" → "1895").
+ const CONFUSABLE=new Set(['O0','D0','Q0','80','60','I1','L1','IL','S5','B8','Z2','G6','T7','A4','UV','NM','CG','EF','HN','RP'].flatMap(p=>[p,p[1]+p[0]]));
  const sub=(a,b)=>a===b?0:a===' '||b===' '?.6:CONFUSABLE.has(a+b)?.35:1;
  const gap=c=>c===' '?.3:1;
  /* Cost of matching the whole pattern somewhere inside text (free leading/trailing text), with the
