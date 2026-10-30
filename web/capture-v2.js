@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-31-v2-11';
+ const BUILD='2026-10-31-v2-12';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -31,10 +31,18 @@
  function changed(a,b){if(!a||!b||a.length!==b.length)return 1;let n=0;for(let i=0;i<a.length;i++)if(Math.abs(a[i]-b[i])>PIXEL)n++;return n/a.length;}
  /* Greyscale with the contrast stretched, scaled so text is a comfortable size for OCR, padded in the
     background colour. invert=true serves dark-on-light text (the weapon tab) when a plain pass did not find it. */
- function normalize(source,region,scale,invert=false){
+ function normalize(source,region,scale,invert=false,rules=false){
   const pad=10,w=Math.max(1,Math.round(region[2]*scale)),h=Math.max(1,Math.round(region[3]*scale));
   const src=draw(source,region,w,h).getContext('2d').getImageData(0,0,w,h).data,g=new Uint8Array(w*h),hist=new Uint32Array(256);
-  for(let i=0,j=0;j<g.length;i+=4,j++){g[j]=(src[i]*77+src[i+1]*150+src[i+2]*29)>>8;hist[g[j]]++;}
+  for(let i=0,j=0;j<g.length;i+=4,j++)g[j]=(src[i]*77+src[i+1]*150+src[i+2]*29)>>8;
+  /* A straight rule under or over the text (the highlight frame of the focused camo group) makes OCR return
+     nothing. A rule row has almost no edges along it yet is far from the background; letters always have edges.
+     Only thin runs of such rows are painted with the background: a wide flat band is a panel or card, not a rule. */
+  const median=Uint8Array.from(g).sort()[g.length>>1],rule=new Uint8Array(h),thin=Math.max(3,Math.round(3*scale));
+  for(let y=0;y<h;y++){let edges=0,sum=0;for(let x=0;x<w;x++){const v=g[y*w+x];sum+=v;if(x&&Math.abs(v-g[y*w+x-1])>40)edges++;}
+   rule[y]=edges<=Math.max(2,w*.01)&&Math.abs(sum/w-median)>30?1:0;}
+  if(rules)for(let y=0;y<h;){if(!rule[y]){y++;continue;}let y1=y;while(y1<h&&rule[y1])y1++;if(y1-y<=thin)g.fill(median,y*w,y1*w);y=y1;}
+  for(let j=0;j<g.length;j++)hist[g[j]]++;
   let lo=0,hi=255,acc=0;for(;lo<255&&(acc+=hist[lo])<g.length*.01;lo++);acc=0;for(;hi>0&&(acc+=hist[hi])<g.length*.01;hi--);
   const span=Math.max(1,hi-lo),out=document.createElement('canvas');out.width=w+pad*2;out.height=h+pad*2;
   const ctx=out.getContext('2d'),image=ctx.createImageData(out.width,out.height),o=image.data;
@@ -133,29 +141,48 @@
   const s=(model.x1-model.x0-(cols-1)*model.gap)/cols,y=label[3]+model.offset;
   return [...Array(cols).keys()].map(i=>{const x=model.x0+i*(s+model.gap);return [x,y,x+s,y+s];});
  }
- /* A padlock is a compact near-white blob, about a sixth of the tile wide, in the tile's top-left corner. */
- function locked(source,frame,W,H){
-  const s=Math.min(frame[2]-frame[0],frame[3]-frame[1]),zone=clampRegion([frame[0]-s*.06,frame[1]-s*.06,s*.36,s*.36],W,H),[,,zw,zh]=zone;
-  const p=draw(source,zone,zw,zh).getContext('2d').getImageData(0,0,zw,zh).data,seen=new Uint8Array(zw*zh);
-  // The padlock is whiter than its tile: on a light (silver) tile a fixed threshold would merge it with the tile.
-  const lum=[];for(let i=0;i<zw*zh;i++)lum.push(Math.min(p[i*4],p[i*4+1],p[i*4+2]));lum.sort((a,b)=>a-b);
-  const base=Math.min(215,Math.max(150,lum[Math.floor(lum.length*.75)]+30));
-  // On a pale, busy tile (bones, skulls) the padlock merges with bright artwork at the base level, so stricter
-  // levels are tried too: the padlock itself is near pure white. Any padlock-shaped blob at any level counts.
-  for(const level of [...new Set([base,200,225,240])].filter(l=>l>=base)){
-   const white=i=>{const r=p[i*4],g=p[i*4+1],b=p[i*4+2];return Math.min(r,g,b)>level&&Math.max(r,g,b)-Math.min(r,g,b)<75;};
-   seen.fill(0);
-   for(let start=0;start<zw*zh;start++){
-    if(seen[start]||!white(start))continue;
-    let n=0,minX=zw,maxX=0,minY=zh,maxY=0;const stack=[start];seen[start]=1;
-    while(stack.length){const i=stack.pop(),x=i%zw,y=(i-x)/zw;n++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-     for(const j of [x+1<zw?i+1:-1,x>0?i-1:-1,i+zw<zw*zh?i+zw:-1,i-zw]){if(j<0||seen[j]||!white(j))continue;seen[j]=1;stack.push(j);}}
-    const bw=maxX-minX+1,bh=maxY-minY+1;
-    if(bw>=s*.07&&bw<=s*.28&&bh>=s*.08&&bh<=s*.3&&n/(bw*bh)>=.3)return true;
-   }
-  }
-  return false;
+ /* The game's padlock as drawn on a 1080p menu (cut from a real Camo Select screenshot): a semi-transparent white
+    body with a keyhole under a hollow shackle, about 8 px in from the tile's top-left corner (the hovered tile
+    shifts it). Used as a 0/1 template with a 2-pixel margin: 1 = padlock, 0 = what surrounds it. */
+ const PADLOCK=[
+  '...########....','..##########...','.##........##..','.#.........##..','.##........##..','.#############.',
+  '.#############.','.##############','###############','###############','#######.#######','######..#######',
+  '######..#######','######..#######','######..######.','##############.','#############..','############...',
+  '###########....'];
+ function lockTemplate(k){
+  const pw=PADLOCK[0].length,ph=PADLOCK.length,tw=Math.round((pw+4)*k),th=Math.round((ph+4)*k),on=[];
+  for(let y=0;y<th;y++)for(let x=0;x<tw;x++){const u=Math.floor((x+.5)/k-2),v=Math.floor((y+.5)/k-2);on.push(u>=0&&u<pw&&v>=0&&v<ph&&PADLOCK[v][u]==='#'?1:0);}
+  return {tw,th,on};
  }
+ const templates=new Map();
+ /* Whether a tile shows the padlock. The padlock is found by its shape (normalised correlation with the template,
+    so a dim padlock on a dark tile and a faint one on a pale tile both match) and must be brighter and colourless
+    (brightness = darkest colour channel, so pink, green or gold artwork cannot imitate white). Scattered white
+    specks in busy camos do not have the padlock's shape. k = scale relative to 1080p. */
+ function locked(source,frame,W,H,k){const m=lockMatch(source,frame,W,H,k);return m.score>=LOCK_MATCH&&m.contrast>=LOCK_CONTRAST;}
+ function lockMatch(source,frame,W,H,k){
+  const s=Math.min(frame[2]-frame[0],frame[3]-frame[1]);k=k||s/93;
+  const key=Math.round(k*20);if(!templates.has(key))templates.set(key,lockTemplate(key/20));
+  const t=templates.get(key),reach=Math.round(30*k);// the estimated tile can sit off the real one, and the hovered tile draws its padlock outside its edge
+  const zone=clampRegion([frame[0]-12*k,frame[1]-10*k,reach+t.tw,reach+t.th],W,H),[,,zw,zh]=zone;
+  const p=draw(source,zone,zw,zh).getContext('2d').getImageData(0,0,zw,zh).data,L=new Float32Array(zw*zh);
+  for(let i=0;i<zw*zh;i++)L[i]=Math.min(p[i*4],p[i*4+1],p[i*4+2]);
+  // Integral images of brightness and its square give each window's mean and variance in constant time.
+  const I=new Float64Array((zw+1)*(zh+1)),Q=new Float64Array((zw+1)*(zh+1)),rs=zw+1;
+  for(let y=0;y<zh;y++){let a=0,b=0;for(let x=0;x<zw;x++){const v=L[y*zw+x];a+=v;b+=v*v;I[(y+1)*rs+x+1]=I[y*rs+x+1]+a;Q[(y+1)*rs+x+1]=Q[y*rs+x+1]+b;}}
+  const box=(A,x,y,w,h)=>A[(y+h)*rs+x+w]-A[y*rs+x+w]-A[(y+h)*rs+x]+A[y*rs+x];
+  const ones=[];for(let i=0;i<t.on.length;i++)if(t.on[i])ones.push([i%t.tw,Math.floor(i/t.tw)]);
+  const n=t.tw*t.th,n1=ones.length,pt=n1/n;
+  let bestScore=-1,bestContrast=0;
+  for(let oy=0;oy+t.th<=zh;oy++)for(let ox=0;ox+t.tw<=zw;ox++){
+   const S=box(I,ox,oy,t.tw,t.th),SQ=box(Q,ox,oy,t.tw,t.th),mean=S/n,varL=SQ/n-mean*mean;if(varL<4)continue;
+   let S1=0;for(const [x,y] of ones)S1+=L[(oy+y)*zw+ox+x];
+   const score=(S1/n-mean*pt)/Math.sqrt(varL*pt*(1-pt));
+   if(score>bestScore){bestScore=score;bestContrast=S1/n1-(S-S1)/(n-n1);}
+  }
+  return {score:bestScore,contrast:bestContrast};
+ }
+ const LOCK_MATCH=.61,LOCK_CONTRAST=12;
  const GROUP_COLUMNS={MILITARY:4,SPECIAL:3,COMPLETIONIST:4,PRESTIGE:4};
  /* Padlock state of every tile in each category read from the menu, e.g. {SPECIAL:[false,false,true]} (true = locked).
     Empty when the Military grid cannot be measured; totals are then used without the tile cross-check. */
@@ -165,8 +192,9 @@
   const next=byY[byY.indexOf(military)+1],label=military.line.frame,h=label[3]-label[1];
   const tiles=detectTiles(source,label,next?next.line.frame[1]:label[3]+h*14,4,2,W,H);
   if(!tiles)return {};
-  const model=gridModel(tiles,label),out={MILITARY:tiles.map(f=>locked(source,f,W,H))};
-  for(const c of byY)if(c.category!=='MILITARY')out[c.category]=modelTiles(model,c.line.frame,GROUP_COLUMNS[c.category]).map(f=>locked(source,f,W,H));
+  // Padlocks are the same size on 3- and 4-column rows; the row width (420 px at 1080p) gives the scale.
+  const model=gridModel(tiles,label),k=(model.x1-model.x0)/420,out={MILITARY:tiles.map(f=>locked(source,f,W,H,k))};
+  for(const c of byY)if(c.category!=='MILITARY')out[c.category]=modelTiles(model,c.line.frame,GROUP_COLUMNS[c.category]).map(f=>locked(source,f,W,H,k));
   return out;
  }
  /* Median brightness of a line crop: light for text on a light tab, dark for text on the dark menu. */
@@ -238,7 +266,7 @@
   async function read(run,mode,source,region,{psm=11,whitelist='',textHeight,scale,invert=false}){
    const engine=await ensureOCR(run);if(!engine)return null;
    const s=scale??(textHeight>=18&&textHeight<=40?1:Math.max(.5,Math.min(3,24/textHeight)));
-   const prep=now(),{canvas,toFrame}=normalize(source,region,s,invert);status.prepMs+=now()-prep;
+   const prep=now(),{canvas,toFrame}=normalize(source,region,s,invert,mode.startsWith('menu'));status.prepMs+=now()-prep;
    const start=now(),result=await engine.read(canvas,{psm,whitelist});if(run!==generation)return null;
    const ms=now()-start;status.reads++;status.lastReadMs=Math.round(ms);status.ocrBusyMs+=ms;
    const lines=result.lines.map(l=>({...l,frame:toFrame(l.bbox),inverted:invert}));
@@ -344,7 +372,12 @@
      // Text alone never adds unlocks: the game's slashed zero can read as 6 or 8 on both reads ("[0/8]" → "6/8").
      // Without padlocks to check against, only a total of zero (which adds nothing) is kept.
      const t=tiles[c.category];if(!t){if(c.current>0)note('tiles-missing',{category:c.category,total:c.current+'/'+c.target});c.tiles=null;return c.current===0;}
-     const ok=JSON.stringify(t)===JSON.stringify(tilesNow[c.category])&&t.filter(x=>!x).length===c.current;
+     // A 6 or 8 that may be the slashed zero becomes 0 when both padlock reads show nothing unlocked.
+     // The second padlock read must agree, unless its grid could not be measured on that frame (video noise):
+     // the two text reads already agree, so one padlock read matching the total is still a second, independent check.
+     const again=tilesNow[c.category],same=!again||JSON.stringify(t)===JSON.stringify(again);
+     if(c.zeroAlt&&same&&t.every(x=>x))c.current=0;
+     const ok=same&&t.filter(x=>!x).length===c.current;
      if(!ok)note('tile-mismatch',{category:c.category,total:c.current+'/'+c.target,tiles:t.map(x=>x?'L':'u').join(''),again:(tilesNow[c.category]||[]).map(x=>x?'L':'u').join('')});
      c.tiles=ok?t:null;return ok;
     });
@@ -541,5 +574,5 @@
   }
   return {start,stop,checkNow,drawPreview,getDiagnosticReport,getStatus:()=>({...status})};
  }
- root.BrowserCamoCaptureV2={create,createOCR,normalize,segment,groupTiles,detectTiles,gridModel,modelTiles,locked,thumb,changed,BUILD};
+ root.BrowserCamoCaptureV2={create,createOCR,normalize,segment,groupTiles,detectTiles,gridModel,modelTiles,locked,lockMatch,thumb,changed,BUILD};
 })(window);

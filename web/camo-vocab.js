@@ -52,8 +52,9 @@
  const STRICT=/^([0-9ODQILZSBGT]{1,2})[/\\|]([0-9ODQILZSBGT])$/,PACKED=/^([0-9ODQILZSBGT])[1IL]([348])$/;
  /* Reads "3/8" or "[3/8]" totals at the end of a category line. Brackets often OCR as I, L, 1 or |, and a
     label's last letter can run into the digits, so up to two characters are trimmed from either end; the first
-    reading that is a valid total for the category wins (up to four leading characters, for label letters such as "...IST"). The game's slashed zero can read as 8: for groups whose
-    target is below 8 that is the only valid interpretation. (Totals are also cross-checked against padlock tiles.) */
+    reading that is a valid total for the category wins (up to four leading characters, for label letters such as "...IST"). The game's slashed zero can read as 8 or 6: for
+    groups whose target is below 8 that is the only valid interpretation. Otherwise the total is flagged (zeroAlt) so
+    the padlock tiles can decide between it and 0. */
  function counter(text,category){
   const raw=String(text||'').toUpperCase().replace(/[^0-9A-Z/\\|]/g,'');
   const tail=(/[0-9ODQILZSBGTJ/\\|]+$/.exec(raw)||[''])[0];
@@ -63,8 +64,8 @@
    const m=STRICT.exec(s)||PACKED.exec(s);if(!m)continue;
    let current=Number(m[1].replace(/./g,c=>DIGIT[c]||c));const target=Number(m[2].replace(/./g,c=>DIGIT[c]||c));
    if(!TARGETS[category].includes(target))continue;
-   if(current>target&&target<8&&/^[8B]$/.test(m[1]))current=0;
-   if(current<=target)return {current,target};
+   if(current>target&&target<8&&/^[86B]$/.test(m[1]))current=0;
+   if(current<=target)return /^[86B]$/.test(m[1])&&current>0?{current,target,zeroAlt:true}:{current,target};
   }
   return null;
  }
@@ -113,7 +114,7 @@
    if(totals[found.category]!==null)totals[found.category]={...value,parts};
   }
   if(!weapon)issues.unshift('No single weapon heading matched.');
-  const categories=Object.entries(totals).filter(([,v])=>v).map(([category,v])=>({category,current:v.current,target:v.target,line:v.parts[0],parts:v.parts}));
+  const categories=Object.entries(totals).filter(([,v])=>v).map(([category,v])=>({category,current:v.current,target:v.target,...(v.zeroAlt?{zeroAlt:true}:{}),line:v.parts[0],parts:v.parts}));
   return {weapon:weapon?.weapon.name||null,weaponLine:weapon?.line||null,categories,issues};
  }
  function rewardWeapon(lines,catalog){

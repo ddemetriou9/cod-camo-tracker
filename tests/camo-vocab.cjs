@@ -20,7 +20,8 @@ assert.equal(weapon('KASTOV 762 PROGRESSION','HAN 86 PROGRESSION'),null,'Two hea
 assert.equal(weapon('aitecmmenammaaaaaaaiiiiiies:'),null);
 
 // Category totals.
-const total=(text,category)=>V.counter(text,category);
+// Totals without the zeroAlt flag (checked separately below).
+const total=(text,category)=>{const r=V.counter(text,category);return r&&{current:r.current,target:r.target};};
 assert.deepEqual(total('3/8','MILITARY'),{current:3,target:8});
 assert.deepEqual(total('318','MILITARY'),{current:3,target:8});
 assert.deepEqual(total('O/3','SPECIAL'),{current:0,target:3});
@@ -42,11 +43,11 @@ assert.equal(reward(['HAN 86'],['MUZZLE BRAKE','ATTACHMENT','+1,250 XP']),null);
 assert.equal(reward(['HAN 86'],['WEAPON LEVEL 45']),null,'Weapon levels never unlock camos');
 assert.equal(reward(['TOP PERFORMING WEAPONS'],['MILITARY CAMO 4']),null,'Reward needs a weapon');
 // Real Patriot XMR menu: bracketed totals, the slashed zero read as 8, wide letter spacing.
-assert.deepEqual(V.counter('MILITARY [8/8]','MILITARY'),{current:8,target:8});
-assert.deepEqual(V.counter('SPECIAL [2/3]','SPECIAL'),{current:2,target:3});
-assert.deepEqual(V.counter('COMPLETIONIST [0/4]','COMPLETIONIST'),{current:0,target:4});
-assert.deepEqual(V.counter('PRESTIGE [8/4]','PRESTIGE'),{current:0,target:4},'Slashed zero read as 8 can only be 0 for a /4 group');
-assert.deepEqual(V.counter('MILITARY 18/81','MILITARY'),{current:8,target:8},'Brackets read as 1');
+assert.deepEqual(total('MILITARY [8/8]','MILITARY'),{current:8,target:8});
+assert.deepEqual(total('SPECIAL [2/3]','SPECIAL'),{current:2,target:3});
+assert.deepEqual(total('COMPLETIONIST [0/4]','COMPLETIONIST'),{current:0,target:4});
+assert.deepEqual(total('PRESTIGE [8/4]','PRESTIGE'),{current:0,target:4},'Slashed zero read as 8 can only be 0 for a /4 group');
+assert.deepEqual(total('MILITARY 18/81','MILITARY'),{current:8,target:8},'Brackets read as 1');
 assert.equal(V.counter('MILITARY [9/8]','MILITARY'),null);
 assert.equal(V.categoryIn('M I L I T A R Y [3/8]')?.category,'MILITARY');
 assert.equal(V.categoryIn('MODE MASTERY'),null);
@@ -71,6 +72,11 @@ assert.equal(reward(['FINN LMG'],['J MILITARY CAMO 2 |'])?.slot,1);
 assert.equal(reward(['FINN LMG'],['MILITARY CAMO 9']),null);
 console.log('camo-vocab: all checks passed');
 
+// The slashed zero read as 6: impossible totals become 0; a possible one is flagged for the padlocks to decide.
+assert.deepEqual(total('PRESTIGE [6/4]','PRESTIGE'),{current:0,target:4});
+assert.deepEqual(total('COMPLETIONIST (6/4)','COMPLETIONIST'),{current:0,target:4});
+assert.equal(V.counter('MILITARY [6/8]','MILITARY').zeroAlt,true);
+assert.equal(V.counter('MILITARY [3/8]','MILITARY').zeroAlt,undefined);
 // Real clipped tab from the knife menu.
 assert.equal(V.menuTab(lines('‘ARBON EDGE 1895 PROGRESSION'),catalog)?.weapon,'FSS Carbon Edge 1095');
 // Real clipped tab from the knife menu.
