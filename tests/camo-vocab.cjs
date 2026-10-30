@@ -70,3 +70,35 @@ assert.equal(reward(['FINN LMG'],['MILITARY CAMO6']),null,'The number must be a 
 assert.equal(reward(['FINN LMG'],['J MILITARY CAMO 2 |'])?.slot,1);
 assert.equal(reward(['FINN LMG'],['MILITARY CAMO 9']),null);
 console.log('camo-vocab: all checks passed');
+
+// Real clipped tab from the knife menu.
+assert.equal(V.menuTab(lines('‘ARBON EDGE 1895 PROGRESSION'),catalog)?.weapon,'FSS Carbon Edge 1095');
+// Real clipped tab from the knife menu.
+assert.equal(V.menuTab(lines('‘ARBON EDGE 1895 PROGRESSION'),catalog)?.weapon,'FSS Carbon Edge 1095');
+
+// ---- Sweep over every weapon, so a fix for one gun is checked against all of them. ----
+const lookalike=s=>s.replace(/0/g,'O').replace(/1/g,'I');           // digits read as letters
+const digitlike=s=>s.replace(/O/g,'0').replace(/B/g,'8');            // letters read as digits
+const failures=[];
+for(const w of catalog.weapons){
+ const name=w.name.toUpperCase(),variants=[name,name.replace(/^\./,''),lookalike(name),digitlike(name),...(name.length>=6?['‘'+name.slice(1)]:[]),...(name.length>=9?[name.slice(2)]:[])];
+ for(const v of variants){
+  const got=V.menuWeapon(lines(v+' PROGRESSION','MODE MASTERY'),catalog)?.weapon.name;
+  if(got!==w.name)failures.push(`menu heading "${v} PROGRESSION" → ${got}`);
+  if(V.menuTab(lines('CHALLENGES / CAMO CHALLENGES /',v+' PROGRESSION'),catalog)?.weapon!==w.name)failures.push(`menu tab "${v} PROGRESSION"`);
+ }
+ // Every possible total, in the game's bracket format and with the slashed zero read as 8.
+ for(const [cat,target] of [['MILITARY',8],['SPECIAL',3],['COMPLETIONIST',4],['PRESTIGE',4]])for(let n=0;n<=target;n++){
+  for(const shown of [`${cat} [${n}/${target}]`,...(n===0&&target<8?[`${cat} [8/${target}]`]:[])]){
+   const m=V.decodeMenu(lines(name+' PROGRESSION',shown),catalog);
+   if(m.weapon!==w.name||m.categories[0]?.current!==n||m.categories[0]?.target!==target)failures.push(`${w.name}: "${shown}" → ${m.weapon} ${m.categories.map(c=>c.current+'/'+c.target)}`);
+  }
+ }
+ // After-match cards: each Military number, and each named camo with its type line.
+ for(let n=1;n<=8;n++){const r=V.decodeReward(lines(name),lines(`MILITARY CAMO ${n}`,'CAMO'),catalog).reward;if(r?.slot!==n-1||r?.weapon!==w.name)failures.push(`${w.name}: MILITARY CAMO ${n} → ${r?.weapon} ${r?.slot}`);}
+ for(const c of catalog.challenges.filter(c=>c.weapon===w.name&&c.slot>=8)){const r=V.decodeReward(lines(name),lines(c.name.toUpperCase(),c.tier.toUpperCase()),catalog).reward;if(r?.id!==c.id)failures.push(`${w.name}: card "${c.name}" → ${r?.name}`);}
+ // Things that must never unlock anything on any weapon.
+ for(const junk of [['WEAPON LEVEL 45'],['MILITARY CAMG'],['MILITARY CAMO'],['+1,250 XP','ATTACHMENT']])if(V.decodeReward(lines(name),lines(...junk),catalog).reward)failures.push(`${w.name}: "${junk.join(' / ')}" unlocked something`);
+}
+if(failures.length){console.log(failures.length+' sweep failures:\n'+failures.slice(0,60).join('\n'));process.exitCode=1;}
+else console.log('camo-vocab: sweep over all '+catalog.weapons.length+' weapons passed');

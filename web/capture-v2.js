@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-29-v2-10';
+ const BUILD='2026-10-31-v2-11';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -105,8 +105,18 @@
    for(let i=0;i<len;){if(d[i]<thr){i++;continue;}let j=i;while(j<len&&d[j]>=thr)j++;if(j-i>=min)out.push([i,j]);i=j;}return out;};
   const xs=runsOf(x=>{let s=0;for(let y=0;y<ht;y++)s+=on[y*w+x];return s/ht;},w,h*2.5);
   if(xs.length<2)return null;
-  const ys=runsOf(y=>{let s=0;for(let x=xs[0][0];x<xs[1][1];x++)s+=on[y*w+x];return s/(xs[1][1]-xs[0][0]);},ht,h*2.5);
-  if(ys.length!==rows)return null;
+  const rowEdges=y=>{let s=0;for(let x=xs[0][0];x<xs[1][1];x++)s+=on[y*w+x];return s/(xs[1][1]-xs[0][0]);};
+  let ys=runsOf(rowEdges,ht,h*2.5);
+  if(ys.length!==rows){
+   /* Smooth camos (plain silver, soft patterns) have few edges mid-tile, which splits a row. The first two
+      columns still give the square size and gap, so rows are laid out from the first textured line instead,
+      and each row must be textured. */
+   const size=xs[0][1]-xs[0][0],gap=xs[1][0]-xs[0][1],d=Array.from({length:ht},(_,y)=>rowEdges(y));
+   const top=[...d].sort((a,b)=>b-a)[Math.floor(ht*.1)]||0,thr=Math.max(.15,top*.5),y0=d.findIndex(v=>v>=thr);
+   if(Math.abs(xs[1][1]-xs[1][0]-size)>size*.15||gap<0||gap>size*.5||y0<0||y0+rows*size+(rows-1)*gap>ht+size*.1)return null;
+   ys=[...Array(rows).keys()].map(k=>[y0+k*(size+gap),y0+k*(size+gap)+size]);
+   if(ys.some(([a,b])=>{let s=0;for(let y=a;y<Math.min(b,ht);y++)s+=d[y];return s/(Math.min(b,ht)-a)<thr*.6;}))return null;
+  }
   // Tiles are equal squares: size from the row height, spacing from the first two columns (later columns can
   // merge with neighbouring artwork), then the grid is laid out from the first tile.
   const size=ys.map(([a,b])=>b-a).sort((a,b)=>a-b)[ys.length>>1],gap=xs[1][0]-xs[0][0]-size;
@@ -129,17 +139,22 @@
   const p=draw(source,zone,zw,zh).getContext('2d').getImageData(0,0,zw,zh).data,seen=new Uint8Array(zw*zh);
   // The padlock is whiter than its tile: on a light (silver) tile a fixed threshold would merge it with the tile.
   const lum=[];for(let i=0;i<zw*zh;i++)lum.push(Math.min(p[i*4],p[i*4+1],p[i*4+2]));lum.sort((a,b)=>a-b);
-  const level=Math.min(215,Math.max(150,lum[Math.floor(lum.length*.75)]+30));
-  const white=i=>{const r=p[i*4],g=p[i*4+1],b=p[i*4+2];return Math.min(r,g,b)>level&&Math.max(r,g,b)-Math.min(r,g,b)<75;};
-  let best=null;
-  for(let start=0;start<zw*zh;start++){
-   if(seen[start]||!white(start))continue;
-   let n=0,minX=zw,maxX=0,minY=zh,maxY=0;const stack=[start];seen[start]=1;
-   while(stack.length){const i=stack.pop(),x=i%zw,y=(i-x)/zw;n++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-    for(const j of [x+1<zw?i+1:-1,x>0?i-1:-1,i+zw<zw*zh?i+zw:-1,i-zw]){if(j<0||seen[j]||!white(j))continue;seen[j]=1;stack.push(j);}}
-   if(!best||n>best.n)best={n,w:maxX-minX+1,h:maxY-minY+1};
+  const base=Math.min(215,Math.max(150,lum[Math.floor(lum.length*.75)]+30));
+  // On a pale, busy tile (bones, skulls) the padlock merges with bright artwork at the base level, so stricter
+  // levels are tried too: the padlock itself is near pure white. Any padlock-shaped blob at any level counts.
+  for(const level of [...new Set([base,200,225,240])].filter(l=>l>=base)){
+   const white=i=>{const r=p[i*4],g=p[i*4+1],b=p[i*4+2];return Math.min(r,g,b)>level&&Math.max(r,g,b)-Math.min(r,g,b)<75;};
+   seen.fill(0);
+   for(let start=0;start<zw*zh;start++){
+    if(seen[start]||!white(start))continue;
+    let n=0,minX=zw,maxX=0,minY=zh,maxY=0;const stack=[start];seen[start]=1;
+    while(stack.length){const i=stack.pop(),x=i%zw,y=(i-x)/zw;n++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+     for(const j of [x+1<zw?i+1:-1,x>0?i-1:-1,i+zw<zw*zh?i+zw:-1,i-zw]){if(j<0||seen[j]||!white(j))continue;seen[j]=1;stack.push(j);}}
+    const bw=maxX-minX+1,bh=maxY-minY+1;
+    if(bw>=s*.07&&bw<=s*.28&&bh>=s*.08&&bh<=s*.3&&n/(bw*bh)>=.3)return true;
+   }
   }
-  return !!best&&best.w>=s*.07&&best.w<=s*.28&&best.h>=s*.08&&best.h<=s*.3&&best.n/(best.w*best.h)>=.3;
+  return false;
  }
  const GROUP_COLUMNS={MILITARY:4,SPECIAL:3,COMPLETIONIST:4,PRESTIGE:4};
  /* Padlock state of every tile in each category read from the menu, e.g. {SPECIAL:[false,false,true]} (true = locked).
@@ -194,7 +209,7 @@
   }catch{let t;return {kind:'page',after(ms,f){clearTimeout(t);t=setTimeout(f,ms);},stop(){clearTimeout(t);}};}
  }
 
- function create({catalog,onReward,onOverview=()=>{},onStatus}){
+ function create({catalog,onReward,onOverview=()=>{},onExact=()=>'already-recorded',onHint=()=>{},onStatus}){
   let generation=0,stream=null,video=null,ocr=null,ocrStarting=null,ticker=null,busy=false;
   let screen=null,strip=null,area=null,pending=null,manual=false,resultsUntil=0;
   const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,prepMs:0,segmentMs:0,tickMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
@@ -260,12 +275,19 @@
   async function findScreen(run,W,H,why){
    const region=clampRegion(fraction(STRIP,W,H),W,H);
    report('reading',why==='manual'?'Looking for a camo menu or results heading…':'A menu settled. Reading its heading…');
-   const lines=await readArea(run,'heading',region,{order:'large',limit:8,stop:l=>!!V.anchorIn(l)});if(!lines)return;
+   const lines=await readArea(run,'heading',region,{order:'large',limit:8,stop:l=>!!V.anchorIn(l)||!!V.menuTab(l,catalog)});if(!lines)return;
    strip.read=strip.prev;strip.readAt=now();
-   const anchor=V.anchorIn(lines);
+   let anchor=V.anchorIn(lines);
+   if(!anchor){
+    // Fallback: the weapon tab under the title. The title's position and size follow from the tab's (measured on
+    // 1080p menus: the title is about 2.2 tab-heights tall, starting 1.65 title-heights above the tab).
+    const tab=V.menuTab(lines,catalog);
+    if(tab){const [a,b,c,d]=tab.line.frame,u=(d-b)*2.2;anchor={screen:'menu',line:{...tab.line,frame:[a-u*1.8,b-u*1.65,c,b-u*.65]},tab:tab.line};}
+   }
    if(!anchor){reject('heading','No camo menu or results heading in the top-left of the screen.',lines);status.lastScreenScan='No Camo Select or Top Performing Weapons heading found.\n'+lines.map(l=>l.text).join('\n');report('watching','Watching. Small checks only while the game is moving.');return;}
    const [x0,y0,x1,y1]=anchor.line.frame,u=Math.max(8,y1-y0);
-   const headingRegion=clampRegion([x0,y0,x1-x0,y1-y0],W,H);
+   // The title (or, in the fallback, the weapon tab) is watched to notice when the menu closes.
+   const hf=anchor.tab?anchor.tab.frame:[x0,y0,x1,y1],headingRegion=clampRegion([hf[0],hf[1],hf[2]-hf[0],hf[3]-hf[1]],W,H);
    screen={kind:anchor.screen,u,box:[x0,y0,x1,y1],headingRegion,heading:thumb(video,headingRegion),missing:0,attempts:0,since:now()};
    if(anchor.screen==='menu'){
     // Weapon heading and category totals sit in a column under the title.
@@ -287,7 +309,7 @@
    if(screen.missing<(screen.kind==='results'?10:3))return true;
    note('screen',{action:'leave',kind:screen.kind,seconds:Math.round((now()-screen.since)/1000)});
    // Card transitions can briefly replace the heading; look again quickly so the next card is not missed.
-   if(screen.kind==='results')resultsUntil=now()+10000;
+   if(screen.kind==='results'){resultsUntil=now()+10000;hintUnconfirmed(screen);}
    screen=null;area=null;pending=null;strip=watch();status.layout='searching';return false;
   }
 
@@ -316,15 +338,19 @@
     const tilesNow=groupTiles(video,first.categories,W,H);
     note('menu-reads',{first:first.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),second:second.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),confirmText:lines.map(l=>l.text).join(' | ').slice(0,200)});
     let agreed=first.weapon===second.weapon?first.categories.filter(a=>second.categories.some(b=>b.category===a.category&&b.current===a.current&&b.target===a.target)):[];
+    const readAgreed=agreed.length;
     // Cross-check each total against the padlocked tiles (both reads). This also catches a slashed zero read as 8.
     agreed=agreed.filter(c=>{
-     const t=tiles[c.category];if(!t)return true;
+     // Text alone never adds unlocks: the game's slashed zero can read as 6 or 8 on both reads ("[0/8]" → "6/8").
+     // Without padlocks to check against, only a total of zero (which adds nothing) is kept.
+     const t=tiles[c.category];if(!t){if(c.current>0)note('tiles-missing',{category:c.category,total:c.current+'/'+c.target});c.tiles=null;return c.current===0;}
      const ok=JSON.stringify(t)===JSON.stringify(tilesNow[c.category])&&t.filter(x=>!x).length===c.current;
      if(!ok)note('tile-mismatch',{category:c.category,total:c.current+'/'+c.target,tiles:t.map(x=>x?'L':'u').join(''),again:(tilesNow[c.category]||[]).map(x=>x?'L':'u').join('')});
      c.tiles=ok?t:null;return ok;
     });
-    if(!agreed.length){reject('menu','Confirmation read disagreed: '+(second.weapon||'no weapon')+' '+second.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),lines);screen.retry=true;report('confirming',(first.weapon||'Weapon')+' totals did not match on the second read. Reading again…');return;}
-    screen.retry=false;status.confirmed++;
+    if(!agreed.length){reject('menu','Confirmation read disagreed: '+(second.weapon||'no weapon')+' '+second.categories.map(c=>c.category+' '+c.current+'/'+c.target).join(', '),lines);screen.retry=true;report('confirming',(first.weapon||'Weapon')+(Object.keys(tiles).length?' totals did not match the padlocks on screen.':' padlocks could not be checked.')+' Reading again…');return;}
+    // A group dropped by the padlock check is read again while the menu stays open.
+    screen.retry=agreed.length<readAgreed;status.confirmed++;
     // Each visit to a weapon's camo menu re-applies what the game shows (once per visit), so a manual reset is
     // corrected the next time the menu is opened. Automatic tracking only ever adds unlocks.
     const reapply=manual||!(screen.reapplied??=new Set()).has(first.weapon);screen.reapplied.add(first.weapon);
@@ -340,10 +366,23 @@
      if(camos.length<c.tiles.length)note('tiles-unnamed',{category:c.category,unnamed:c.tiles.length-camos.length,unlocked:c.tiles.slice(camos.length).filter(x=>!x).length});
      for(const [i,camo] of camos.entries())if(!c.tiles[i]){const r=onReward({id:camo.id,weapon:first.weapon,name:camo.name,slot:camo.slot,military:false,reapply});named.push(camo.name);if(r==='saved'){status.saved++;result='saved';}note('apply',{mode:'menu-tile',weapon:first.weapon,camo:camo.name,result:r});}
     }
+    /* The game's menu is the truth for this weapon. Once per visit, every group whose total AND padlocks agreed on
+       two reads is set exactly as shown, which also clears unlocks recorded by mistake (for example from a misread
+       card). A group whose padlocks were not confirmed is never cleared. */
+    if(reapply){
+     const states=[];
+     for(const c of agreed){
+      if(!c.tiles)continue;
+      const camos=c.category==='MILITARY'?catalog.challenges.filter(x=>x.weapon===first.weapon&&x.tier==='Military').sort((a,b)=>a.slot-b.slot):groupCamos(first.weapon,c.category);
+      if(!camos.length||camos.length>c.tiles.length)continue;
+      camos.forEach((camo,i)=>states.push({id:camo.id,name:camo.name,unlocked:!c.tiles[i]}));
+     }
+     if(states.length){const r=onExact({weapon:first.weapon,states});if(r.result==='saved'){status.saved++;result='saved';}if(r.cleared?.length)note('apply',{mode:'menu-exact',weapon:first.weapon,cleared:r.cleared.join(', '),result:r.result});}
+    }
     note('apply',{mode:'menu',weapon:first.weapon,totals:agreed.map(c=>c.category+' '+c.current+'/'+c.target),result});
     const summary=agreed.map(c=>c.category.toLowerCase()+' '+c.current+'/'+c.target).join(' · ')+(named.length?' ('+named.join(', ')+')':'');
     status.lastScreenScan=first.weapon+': '+summary+' ('+result+')';
-    report('watching',first.weapon+' '+(result==='failed'?'could not be saved':result==='already-recorded'?'already recorded; manual corrections preserved':'saved')+': '+summary+'.'+(agreed.some(c=>c.category==='MILITARY')?'':' Military total was not read.'));
+    report('watching',first.weapon+' '+(result==='failed'?'could not be saved':result==='already-recorded'?'already up to date':'saved')+': '+summary+'.'+(agreed.some(c=>c.category==='MILITARY')?'':' Military total was not read.'));
     return;
    }
    // Menu text lines are wide; sidebar icons and the level number are narrow and would use up the read budget.
@@ -359,6 +398,21 @@
   /* ---- after-match results ---- */
   /* Results cards zoom and flash between reads, so a reward is confirmed by two separate reads (different
      frames, at most RESULTS_CONFIRM_MS apart) that decode to the same camo for the same weapon. */
+  /* Cards are never loosened to catch more of them (that is how false unlocks happen). Instead, a weapon whose camo
+     card was seen but not confirmed is named when the results close, so the player can open its camo menu, which is
+     read and checked against the padlocks. */
+  function doubt(weapon,id){if(!weapon)return;const d=(screen.doubts??=new Map());if(!d.has(weapon))d.set(weapon,new Set());if(id)d.get(weapon).add(id);else d.get(weapon).add('?');}
+  function hintUnconfirmed(results){
+   const applied=[...(results.applied||[])].map(id=>catalog.challenges.find(c=>c.id===id)).filter(Boolean),weapons=[];
+   for(const [weapon,ids] of results.doubts||[]){
+    const top=Math.max(-1,...applied.filter(c=>c.weapon===weapon&&c.slot<8).map(c=>c.slot)),got=new Set(applied.filter(c=>c.weapon===weapon).map(c=>c.id));
+    const open=[...ids].filter(id=>{if(got.has(id))return false;if(id==='?')return !got.size;const c=catalog.challenges.find(x=>x.id===id);return !(c&&c.slot<8&&c.slot<=top);});
+    if(open.length)weapons.push(weapon);
+   }
+   if(!weapons.length)return;
+   note('unconfirmed',{weapons:weapons.join(', ')});onHint({weapons});
+   report('watching','Some camo cards could not be confirmed. Open the camo menu for '+weapons.join(', ')+' to check it.');
+  }
   async function readResults(run,W,H){
    // The weapon name changes less often than the cards; re-read it only when its area changed.
    const nameView=area.prev;
@@ -376,8 +430,11 @@
    status.lastReading=['Weapon: '+weaponLines.map(l=>l.text).join(' / '),'Reward: '+rewardLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
    // Most results cards are XP or attachments; only retry when a weapon was readable but its reward was not.
    note('card',{weapon:decoded.weapon||decoded.reward?.weapon||null,reward:decoded.reward?.name||null,issue:decoded.issue||null,text:rewardLines.map(l=>l.text).join(' / ').slice(0,80)});
+   // A camo-like card that did not decode (number cut off, name garbled) is remembered for the hint.
+   if(!decoded.reward&&decoded.weapon&&/Military camo number unreadable|No camo name/.test(decoded.issue||''))doubt(decoded.weapon,null);
    if(!decoded.reward){reject('reward',decoded.issue,[...weaponLines,...rewardLines]);screen.retry=!!decoded.weapon&&decoded.issue!=='No camo type label on the card.';report('watching','Results visible'+(decoded.weapon?' for '+decoded.weapon:'')+'. Waiting for a camo reward card; attachments, XP and levels are ignored.');return;}
    const r=decoded.reward,seen=screen.rewardSeen;
+   doubt(r.weapon,r.id);
    if(!seen||seen.id!==r.id||now()-seen.at>RESULTS_CONFIRM_MS){screen.rewardSeen={id:r.id,at:now()};screen.retry=true;report('confirming',r.weapon+' — '+r.name+' read. Confirming…');return;}
    screen.rewardSeen=null;screen.retry=false;
    if(screen.applied?.has(r.id))return;(screen.applied??=new Set()).add(r.id);

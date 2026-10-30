@@ -76,13 +76,32 @@
  }
  const progressionCut=text=>{const words=clean(text).split(' ');const at=words.findIndex((w,i)=>i>0&&w.length>=5&&locate(w,'PROGRESSION'.slice(0,Math.min(11,w.length)))?.cost<=1);return at>0?{text:words.slice(0,at).join(' '),labelled:true}:{text:clean(text),labelled:false};};
  /* Weapon from a camo-menu heading such as "KASTOV 762 PROGRESS" (often truncated or with stray symbols). */
+ /* With the PROGRESSION word present, the weapon name is all of the text before it, so unmatched text counts
+    against a candidate (a short name like "M4" cannot hide inside "KRAIT P68"). The tab's left edge often clips
+    the first letters ("‘ARBON EDGE"), so up to three leading characters may be missing at a small cost. */
+ function tabWeapon(text,catalog){
+  const n=clean(text).replace(/ /g,'').length;
+  const scored=catalog.weapons.map(w=>{const name=clean(w.name);let cost=Infinity;
+   for(let k=0;k<=Math.min(3,Math.floor(name.replace(/ /g,'').length*.3));k++){
+    let rest=name,dropped=0;while(dropped<k&&rest){if(rest[0]!==' ')dropped++;rest=rest.slice(1);}rest=rest.trim();if(!rest)break;
+    const hit=locate(text,rest);if(!hit||(k&&hit.start>0))continue;
+    const unmatched=Math.max(0,n-clean(text).slice(hit.start,hit.end+1).replace(/ /g,'').length);
+    cost=Math.min(cost,hit.cost+.4*k+.5*unmatched);
+   }
+   return {w,cost};}).sort((a,b)=>a.cost-b.cost);
+  const [first,second]=scored;
+  return first.cost<=allowance(first.w.name)&&(!second||second.cost>=first.cost+1)?{candidate:first.w,cost:first.cost}:null;
+ }
  function menuWeapon(lines,catalog){
   const hits=[];
-  for(const line of lines){const cut=progressionCut(line.text);const found=best(cut.text,catalog.weapons,{label:w=>w.name});if(found)hits.push({weapon:found.candidate,line,labelled:cut.labelled,cost:found.cost});}
+  for(const line of lines){const cut=progressionCut(line.text);const found=cut.labelled?tabWeapon(cut.text,catalog):best(cut.text,catalog.weapons,{label:w=>w.name});if(found)hits.push({weapon:found.candidate,line,labelled:cut.labelled,cost:found.cost});}
   const pool=hits.some(h=>h.labelled)?hits.filter(h=>h.labelled):hits;
   const names=[...new Set(pool.map(h=>h.weapon.name))];
   return names.length===1?pool.sort((a,b)=>a.cost-b.cost)[0]:null;
  }
+ /* The "<WEAPON> PROGRESSION" tab appears only on a weapon's Camo Select menu, so it identifies the menu when the
+    "CAMO SELECT" title is unreadable (it often merges with the stylised text beside it). Needs the PROGRESSION word. */
+ function menuTab(lines,catalog){const found=menuWeapon(lines,catalog);return found&&found.labelled?{weapon:found.weapon.name,line:found.line}:null;}
  function decodeMenu(lines,catalog){
   const weapon=menuWeapon(lines,catalog),totals={},issues=[];
   for(let i=0;i<lines.length;i++){
@@ -137,6 +156,6 @@
   const c=hits[0].candidate;
   return {reward:{id:c.id,weapon:w,name:c.name,slot:c.slot,military:false},weaponLine:weapon.line};
  }
- const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,ANCHORS,TARGETS};
+ const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,menuTab,ANCHORS,TARGETS};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoVocab=api;
 })(typeof window==='object'?window:globalThis);
