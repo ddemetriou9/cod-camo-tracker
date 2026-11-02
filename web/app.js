@@ -139,7 +139,8 @@ function resetWeapon(w){
   for(const key of Object.keys(state.autoApplied||{}))if(receipts.has(key)||key.startsWith('category:'+canonical(w.name)+':')||counters.some(p=>key.startsWith(p)))delete state.autoApplied[key];
  }))toast(w.name+' reset. Open its camo menu in the game to read it again.');
 }
-function loadoutLink(w){return w.loadout?`<a class="row-loadout" href="${esc(w.loadout)}" target="_blank" rel="noopener noreferrer" aria-label="Best ${esc(w.name)} loadouts on wzstats.gg (opens a new tab)">Best loadouts ↗</a>`:'';}
+// Links out to third-party build sites; their builds and codes are not copied into the app (their terms forbid it).
+function loadoutLink(w){return `<span class="row-links">${w.loadout?`<a class="row-loadout" href="${esc(w.loadout)}" target="_blank" rel="noopener noreferrer" aria-label="Best ${esc(w.name)} loadouts on wzstats.gg (opens a new tab)">Best loadouts ↗</a>`:''}${w.codes?`<a class="row-loadout" href="${esc(w.codes)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(w.name)} import codes on CODMunity (opens a new tab)">Import codes ↗</a>`:''}</span>`;}
 const PRESTIGE_BANDS=[[50,'Player levels 50–55','Locked longest after Classic Prestige — finish these first'],[30,'Player levels 30–48','A long wait after Classic Prestige'],[10,'Player levels 11–27','Back within the first few hours'],[0,'Player levels 4–9','Back almost straight away']];
 function arsenalSections(weapons){
  if(arsenalOrder!=='prestige')return [...new Set(weapons.map(w=>w.class))].map(cls=>{const list=weapons.filter(w=>w.class===cls);return [cls,list.length+' weapons',list];});
