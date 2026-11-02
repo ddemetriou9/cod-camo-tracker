@@ -75,8 +75,9 @@
  }
  $('#automation').onclick=panel;
  // One click starts or stops tracking without opening the panel; the browser still asks which window to share.
- // Phones and tablets cannot share a game window (no screen capture, touch-only), so they get no switch.
- const toggle=$('#tracker-toggle');toggle.hidden=!navigator.mediaDevices?.getDisplayMedia||matchMedia('(hover:none) and (pointer:coarse)').matches;
+ // Phones and tablets cannot share a game window (no screen capture, touch-only), so every tracker control is hidden there.
+ const toggle=$('#tracker-toggle'),canCapture=!!navigator.mediaDevices?.getDisplayMedia&&!matchMedia('(hover:none) and (pointer:coarse)').matches;
+ toggle.hidden=!canCapture;document.body.classList.toggle('no-capture',!canCapture);
  toggle.onclick=()=>{if(toggle.getAttribute('aria-checked')==='true')tracker.stop();else tracker.start();};
  window.addEventListener('pagehide',()=>tracker.stop());
 })();
