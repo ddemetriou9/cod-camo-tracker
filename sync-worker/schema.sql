@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS docs (
+  edit_hash TEXT PRIMARY KEY,
+  view_id TEXT NOT NULL UNIQUE,
+  rev INTEGER NOT NULL,
+  data TEXT NOT NULL,
+  updated TEXT NOT NULL
+);

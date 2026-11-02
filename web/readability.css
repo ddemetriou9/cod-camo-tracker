@@ -27,3 +27,6 @@ body{font-size:15px;line-height:1.5}
 @media(max-width:640px){.row-links{margin-left:104px}}
 /* Keep the weapon-class list in view while the page scrolls; it scrolls itself if taller than the window. */
 @media(min-width:851px){.sidebar{position:sticky;top:0;align-self:start;box-sizing:border-box;height:100vh;min-height:0;overflow-y:auto}}
+/* Sync panel and the read-only view a share link opens. */
+.sync-code,.sync-link{font:600 17px/1.5 Consolas,monospace;letter-spacing:.04em;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:10px 12px;overflow-wrap:anywhere;margin:6px 0 8px}.sync-link{font-size:13px;letter-spacing:0}.sync-note{color:var(--muted);font-size:13px}#info-body h3{margin:22px 0 4px;font-size:15px}#sync-join{display:flex;gap:8px;flex-wrap:wrap}#sync-code{flex:1 1 220px;font:15px Consolas,monospace;text-transform:uppercase}
+.shared-banner{background:#263025;border-bottom:1px solid #8fa978;padding:10px 32px;font-size:14px}.shared-banner a{color:var(--lime);margin-left:8px}.shared-view #sync,.shared-view #export,.shared-view #import,.shared-view #automation,.shared-view #add-goal,.shared-view [data-view="plan"],.shared-view .weapon-links .reset-weapon{display:none}

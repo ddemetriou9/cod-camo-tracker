@@ -1,0 +1,10 @@
+name = "mw4-sync"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mw4-sync"
+database_id = "788393ef-2d3a-4593-9f37-abcad2a37a69"

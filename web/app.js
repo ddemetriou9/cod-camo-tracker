@@ -12,6 +12,8 @@ let state={version:3,checks:{},goals:[],mode:'Multiplayer'},view='arsenal',class
 let arsenalOrder='class';try{if(localStorage.getItem('mw4.arsenalOrder')==='prestige')arsenalOrder='prestige';}catch{}
 let auto={connected:false,running:false,message:'Capture is stopped.',entries:[],interval:4};
 let checkedNativeMigration=false;
+// sync.js sets these: readOnly for a friend's share link, afterSave to upload changes.
+let readOnly=false,afterSave=()=>{};
 const token=new URLSearchParams(location.hash.slice(1)).get('token');
 const companion=location.protocol==='http:'&&location.hostname==='127.0.0.1'&&!!token;
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4500);}
@@ -38,7 +40,7 @@ function validate(input){
 }
 try{const saved=localStorage.getItem(KEY);if(saved)state=validate(JSON.parse(saved));else if(window.NATIVE_MIGRATION){state=validate(window.NATIVE_MIGRATION);localStorage.setItem(KEY,JSON.stringify(state));}}
 catch(e){$('#save-status').textContent='Storage needs attention';setTimeout(()=>toast(e.message+' Export your plan before closing.'),200);}
-function commit(change){const before=JSON.stringify(state);try{change();state=validate(state);localStorage.setItem(KEY,JSON.stringify(state));$('#save-status').textContent='Saved on this device';render();return true;}catch(e){state=JSON.parse(before);toast(e.message);return false;}}
+function commit(change){if(readOnly){toast('This is a shared view. Changes are not saved.');return false;}const before=JSON.stringify(state);try{change();state=validate(state);localStorage.setItem(KEY,JSON.stringify(state));$('#save-status').textContent='Saved on this device';render();afterSave();return true;}catch(e){state=JSON.parse(before);toast(e.message);return false;}}
 function setCamoUnlocked(c,unlocked){
  if(c.slot>=0&&c.slot<8){for(let slot=unlocked?0:c.slot;slot<(unlocked?c.slot+1:8);slot++)state.checks[slotKey(c.weapon,slot)]=unlocked;}
  else state.checks[c.slot>=0?slotKey(c.weapon,c.slot):c.checkKey]=unlocked;
@@ -190,7 +192,7 @@ document.addEventListener('change',event=>{if(event.target.id==='weapon-mode'){c
 $('#search').addEventListener('input',render);$('#order').addEventListener('change',()=>{arsenalOrder=$('#order').value==='prestige'?'prestige':'class';try{localStorage.setItem('mw4.arsenalOrder',arsenalOrder);}catch{}render();});$('#mode').addEventListener('change',()=>commit(()=>state.mode=$('#mode').value));$('#add-goal').onclick=()=>editGoal(null);$('#add-image').onclick=()=>$('#image-file').click();
 function download(name,text,type='application/json'){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
 $('#export').onclick=()=>download('MW4-plan.json',JSON.stringify({...state,format:'mw4-html-plan',exportedAt:new Date().toISOString()},null,2));$('#import').onclick=()=>$('#import-file').click();
-$('#import-file').onchange=async()=>{const file=$('#import-file').files[0];if(!file)return;try{if(file.size>5e6)throw Error('Plans must be smaller than 5 MB.');const next=validate(JSON.parse(await file.text()));if(!confirm('Replace this browser’s manual progress and goals? A local backup will be retained.'))return;localStorage.setItem(KEY+'.before-import',JSON.stringify(state));const before=state;try{localStorage.setItem(KEY,JSON.stringify(next));state=next;}catch(e){state=before;throw e;}render();toast('Plan imported. Automatic capture has not been started.');}catch(e){toast('Import failed: '+e.message);}finally{$('#import-file').value='';}};
+$('#import-file').onchange=async()=>{const file=$('#import-file').files[0];if(!file)return;try{if(file.size>5e6)throw Error('Plans must be smaller than 5 MB.');const next=validate(JSON.parse(await file.text()));if(!confirm('Replace this browser’s manual progress and goals? A local backup will be retained.'))return;localStorage.setItem(KEY+'.before-import',JSON.stringify(state));const before=state;try{localStorage.setItem(KEY,JSON.stringify(next));state=next;}catch(e){state=before;throw e;}render();afterSave();toast('Plan imported. Automatic capture has not been started.');}catch(e){toast('Import failed: '+e.message);}finally{$('#import-file').value='';}};
 function info(title,html){$('#info-title').textContent=title;$('#info-body').innerHTML=html;$('#info-dialog').showModal();}
 $('#credits').onclick=()=>info('Catalogue & sources',`<p>Checked ${esc(catalog.checkedAt)}. ${catalog.weapons.length} weapons, ${catalog.challenges.length} camo slots and 99 named Special camos.</p><p>Military entries retain numbered names where individual names have not been independently verified. Community requirements and estimated unlock levels can change; compare them with the current game. Conflicting and glitched entries are flagged rather than presented as verified.</p><ul>${catalog.sources.map(s=>`<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)}</a></li>`).join('')}</ul><p>Game names and artwork belong to Activision. This is an independent local tool. MW4.GG database/code was not copied.</p><p>Share the clean MW4-HTML-Tracker.zip to let a friend start fresh. Share an exported plan separately if you want them to have your goals or progress. Personal reference images stay in this browser and are not included in plan exports.</p>`);
 function mediaDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('mw4.fieldnotes.images',1);r.onupgradeneeded=()=>r.result.createObjectStore('images',{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
@@ -281,4 +283,7 @@ $('#class-list').innerHTML=[...new Set(catalog.weapons.map(w=>w.class))].map(c=>
 window.addEventListener('storage',event=>{if(event.key===KEY&&event.newValue){try{state=validate(JSON.parse(event.newValue));render();if($('#info-dialog').open&&$('#info-title').textContent==='Automatic tracker')renderAutomation();}catch(e){toast('Could not sync another tab: '+e.message);}}});
 render();loadMedia().catch(()=>{});if(companion){refreshAuto();setInterval(refreshAuto,4000);}
 window.TrackerTest={get state(){return state;},validate,trackCamo,count,commit};
+window.TrackerSync={get state(){return state;},validate,toast,info,render,
+ setState(next,persist=true){state=validate(next);if(persist)localStorage.setItem(KEY,JSON.stringify(state));render();},
+ onSave(fn){afterSave=fn;},setReadOnly(on){readOnly=on;}};
 

@@ -7,7 +7,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / 'web'
 html = (WEB / 'index.html').read_text(encoding='utf-8-sig')
-for name in ('reward-parser.js', 'browser-capture.js', 'browser-tracker-ui.js'):
+for name in ('reward-parser.js', 'browser-capture.js', 'browser-tracker-ui.js', 'sync.js'):
     html = re.sub(r'<script src="' + re.escape(name) + r'(?:\?[^"]*)?"></script>', '', html)
 
 # Inline the stylesheet, data and assets. Each picture is encoded just once;
