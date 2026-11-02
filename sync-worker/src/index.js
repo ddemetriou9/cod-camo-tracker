@@ -48,6 +48,8 @@ function publicView(data) {
 async function route(request, env) {
   const url = new URL(request.url), path = url.pathname, now = new Date().toISOString();
   if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: cors});
+  // People who open the server address directly get pointed at the tracker.
+  if (path === '/' && request.method === 'GET') return new Response('MW4 Fieldnotes sync server is running.\n\nThis address is used by the tracker behind the scenes. Open the tracker and use "Sync devices":\nhttps://ddemetriou9.github.io/cod-camo-tracker/\n', {headers: {'Content-Type': 'text/plain; charset=utf-8'}});
 
   if (path === '/v1/create' && request.method === 'POST') {
     const {data} = await readData(request), code = newEditCode(), viewId = newViewId();
