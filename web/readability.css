@@ -25,3 +25,5 @@ body{font-size:15px;line-height:1.5}
 .weapon-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:8px}.weapon-links .row-loadout{margin:0}.weapon-detail-heading .reset-weapon{position:static;font-size:13px;min-height:36px;padding:6px 12px;color:#ffcba9;border-color:#6b4a3e;background:transparent}
 .row-links{display:flex;flex-wrap:wrap;gap:0 14px;margin-left:98px}.row-links .row-loadout{margin:4px 0 0}.weapon-detail-heading .row-links{margin-left:0}.weapon-detail-heading .row-links .row-loadout{margin:0}
 @media(max-width:640px){.row-links{margin-left:104px}}
+/* Keep the weapon-class list in view while the page scrolls; it scrolls itself if taller than the window. */
+@media(min-width:851px){.sidebar{position:sticky;top:0;align-self:start;box-sizing:border-box;height:100vh;min-height:0;overflow-y:auto}}
