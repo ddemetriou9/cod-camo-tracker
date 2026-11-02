@@ -7,11 +7,11 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-10-31-v2-13';
+ const BUILD='2026-11-03-v2-14';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
- const SAMPLE_MS={none:500,menu:500,results:150};
+ const SAMPLE_MS={none:500,menu:500,results:150,aar:500};
  const FORCE_MS=4000,STRIP_LIMITS={still:.03,fresh:.02};// read anyway if an area keeps moving slightly (animated backgrounds) for this long
  const MENU_WHITELIST='ACDEILMNOPRSTY0123456789/ ',DIGITS=/\d/;
 
@@ -230,6 +230,32 @@
   for(let i=0;i<p.length;i+=4)v.push((p[i]*77+p[i+1]*150+p[i+2]*29)>>8);
   v.sort((a,b)=>a-b);return v[v.length>>1];
  }
+ /* The game draws zero with a slash, which OCR reads as 8 or 6. The slash makes a zero lopsided: about half its
+    inside ink has no mirror image (0.49-0.70 measured on After Action Report numbers at 1280-1920 px captures), where
+    an 8 is nearly symmetrical. A 6 is lopsided too but has no stroke at its upper right (0.14-0.33 of those rows),
+    while a zero always does. Glyphs under 16 px are left alone: the measures get unreliable on tiny text. Digits are
+    split on empty columns; if that does not give one box per character the text is returned unchanged. */
+ function slashedZeros(source,frame,text){
+  if(!/[86]/.test(text))return text;
+  const [x0,y0]=frame.map(Math.round),w=Math.max(1,Math.round(frame[2]-frame[0])),h=Math.max(1,Math.round(frame[3]-frame[1]));
+  const p=draw(source,[x0,y0,w,h],w,h).getContext('2d').getImageData(0,0,w,h).data,L=new Uint8Array(w*h);
+  for(let i=0,j=0;j<L.length;i+=4,j++)L[j]=Math.min(p[i],p[i+1],p[i+2]);
+  const sorted=[...L].sort((a,b)=>a-b),cut=(sorted[Math.floor(L.length*.1)]+sorted[Math.floor(L.length*.97)])/2,ink=(x,y)=>L[y*w+x]>cut;
+  const glyphs=[];let start=-1;
+  for(let x=0;x<=w;x++){let on=false;if(x<w)for(let y=0;y<h&&!on;y++)on=ink(x,y);if(on&&start<0)start=x;if(!on&&start>=0){if(x-start>1)glyphs.push([start,x]);start=-1;}}
+  if(glyphs.length!==text.length)return text;
+  return [...text].map((ch,i)=>{
+   if(ch!=='8'&&ch!=='6')return ch;
+   const [a,b]=glyphs[i],gw=b-a;let top=h,bottom=0;
+   for(let y=0;y<h;y++)for(let x=a;x<b;x++)if(ink(x,y)){top=Math.min(top,y);bottom=Math.max(bottom,y);}
+   const gh=bottom-top+1;if(gh<16||gw<5)return ch;
+   let inside=0,unmatched=0;
+   for(let y=top+Math.round(gh*.12);y<=bottom-Math.round(gh*.12);y++)for(let x=a+Math.round(gw*.2);x<b-Math.round(gw*.2);x++)if(ink(x,y)){inside++;if(!ink(b-1-(x-a),y))unmatched++;}
+   let rows=0,stroked=0;
+   for(let y=top+Math.round(gh*.2);y<=top+Math.round(gh*.4);y++){rows++;let hit=false;for(let x=b-1;x>=b-Math.max(2,Math.round(gw*.3))&&!hit;x--)hit=ink(x,y);stroked+=hit;}
+   return unmatched/Math.max(1,inside)>=.45&&stroked/rows>=.6?'0':ch;
+  }).join('');
+ }
 
  /* ---- OCR ---- */
  let libraryPromise;
@@ -263,7 +289,7 @@
   }catch{let t;return {kind:'page',after(ms,f){clearTimeout(t);t=setTimeout(f,ms);},stop(){clearTimeout(t);}};}
  }
 
- function create({catalog,onReward,onOverview=()=>{},onExact=()=>'already-recorded',onHint=()=>{},onStatus}){
+ function create({catalog,onReward,onOverview=()=>{},onExact=()=>'already-recorded',onHint=()=>{},onMatch=()=>'ignored',onStatus}){
   let generation=0,stream=null,video=null,ocr=null,ocrStarting=null,ticker=null,busy=false;
   let screen=null,strip=null,area=null,pending=null,manual=false,resultsUntil=0;
   const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,prepMs:0,segmentMs:0,tickMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
@@ -346,6 +372,10 @@
    if(anchor.screen==='menu'){
     // Weapon heading and category totals sit in a column under the title.
     screen.regions={column:clampRegion([x0-u*2,y0+u*.8,Math.max(u*16,W*.2),H*.85-y0],W,H)};
+   }else if(anchor.screen==='aar'){
+    // Measured on 1080p (title text 34 px): result, mode and map, then the four stats down to about 16 title-heights
+    // below; the top-performing weapon is in the right-hand panel, about 9 title-heights down.
+    screen.regions={summary:clampRegion([x0-u,y0+u*2,Math.max(u*26,W*.46),Math.max(u*16.5,H*.52)],W,H),weapon:clampRegion([W*.58,y0+u*7,W*.34,u*4],W,H)};
    }else{
     // The weapon name is about three header-heights tall and starts a little below the header.
     // A heading measured mid-animation can be mis-sized, so the band also has a floor from the screen size.
@@ -354,7 +384,7 @@
    area=watch();pending=null;
    status.layout=anchor.screen+' heading at '+Math.round(x0)+','+Math.round(y0)+' (text '+Math.round(u)+' px)';
    note('screen',{action:'enter',kind:anchor.screen,heading:anchor.line.text.slice(0,60),x:Math.round(x0),y:Math.round(y0),u:Math.round(u)});
-   report('reading',anchor.screen==='menu'?'Camo menu found. Reading the weapon and category totals…':'After-match results found. Reading each weapon card…');
+   report('reading',{menu:'Camo menu found. Reading the weapon and category totals…',aar:'After Action Report found. Reading your match stats…'}[anchor.screen]||'After-match results found. Reading each weapon card…');
   }
   function stillOnScreen(){
    const delta=changed(thumb(video,screen.headingRegion),screen.heading);
@@ -502,6 +532,33 @@
    report('watching',r.weapon+' — '+r.name+(result==='failed'?' could not be saved. Check browser storage.':result==='already-recorded'?' was already recorded; manual corrections preserved.':' recognised. Progress saved automatically.'));
   }
 
+  /* After Action Report: read once the summary has settled, then again; a match is recorded only when both reads agree.
+     Each number is read on its own from just above its label, because a lone digit is easily missed by segmentation. */
+  async function readAarOnce(run,W,H){
+   const lines=await readArea(run,'aar',screen.regions.summary,{limit:16});if(!lines)return null;
+   const labels=V.statLabels(lines),numbers={};
+   for(const [word,line] of Object.entries(labels)){
+    const [a,b,c,d]=line.frame,h=d-b,cx=(a+c)/2,frame=[Math.max(0,cx-h*3),Math.max(0,b-h*2.75),Math.min(W,cx+h*3),Math.max(1,b-h*1.05)];
+    const got=await readLine(run,'aar-number',frame,'0123456789');if(!got)return null;
+    const digits=got.text.replace(/\D/g,'');numbers[word]=digits&&slashedZeros(video,frame,digits);
+   }
+   const weaponLines=await readArea(run,'aar-weapon',screen.regions.weapon,{limit:4});if(!weaponLines)return null;
+   status.lastReading=['After Action Report: '+lines.map(l=>l.text).join(' / '),'Numbers: '+JSON.stringify(numbers),'Weapon: '+weaponLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
+   return V.decodeAar(lines,numbers,weaponLines,catalog);
+  }
+  async function readAar(run,W,H){
+   if(screen.done)return;
+   screen.attempts++;manual=false;area.read=area.prev;area.readAt=now();
+   const first=await readAarOnce(run,W,H);if(!first)return;
+   if(!first.match){reject('aar',first.issue,[]);report('watching','After Action Report visible. '+first.issue+' Trying again.');if(screen.attempts>=4){screen.done=true;report('watching','Could not read this After Action Report. Stats for this match were not recorded.');}return;}
+   report('confirming','Match stats read. Confirming…');
+   const second=await readAarOnce(run,W,H);if(!second)return;
+   const key=m=>JSON.stringify(m);
+   if(!second.match||key(first.match)!==key(second.match)){note('aar-mismatch',{first:first.match,second:second.match});if(screen.attempts>=4){screen.done=true;report('watching','This After Action Report read differently twice. Stats for this match were not recorded.');}return;}
+   screen.done=true;const m=first.match,result=onMatch(m);
+   note('apply',{mode:'aar',match:m,result});
+   report('watching',m.result+' — '+m.kills+' kills, '+m.deaths+' deaths'+(result==='duplicate'?' (already recorded).':'. Saved to Stats.'));
+  }
 
   /* ---- loop ---- */
   async function tick(run){
@@ -526,6 +583,13 @@
     if(!stillOnScreen()){report('watching','Screen closed. Watching for the next camo menu or results.');return;}
     delay=SAMPLE_MS[screen.kind];
     let view,o,limits={still:STILL,fresh:FRESH};
+    if(screen.kind==='aar'){
+     if(screen.done)return;
+     // The background drifts, so wait for the numbers to finish counting up rather than for a perfectly still frame.
+     o=observe(area,thumb(video,screen.regions.summary),RESULTS_LIMITS);
+     if(manual||o.settled||now()-screen.since>3000)await readAar(run,W,H);
+     return;
+    }
     if(screen.kind==='menu'){view=thumb(video,screen.regions.column);o=observe(area,view,limits);}
     else{
      /* Results cards last about two seconds and zoom, flash white and sit in moving particles, so they
@@ -600,5 +664,5 @@
   }
   return {start,stop,checkNow,drawPreview,getDiagnosticReport,getStatus:()=>({...status})};
  }
- root.BrowserCamoCaptureV2={create,createOCR,normalize,segment,groupTiles,detectTiles,gridModel,modelTiles,locked,lockMatch,thumb,changed,BUILD};
+ root.BrowserCamoCaptureV2={create,createOCR,normalize,segment,groupTiles,detectTiles,gridModel,modelTiles,locked,lockMatch,slashedZeros,thumb,changed,BUILD};
 })(window);

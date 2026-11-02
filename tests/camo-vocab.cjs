@@ -113,3 +113,20 @@ for(const w of catalog.weapons){
 }
 if(failures.length){console.log(failures.length+' sweep failures:\n'+failures.slice(0,60).join('\n'));process.exitCode=1;}
 else console.log('camo-vocab: sweep over all '+catalog.weapons.length+' weapons passed');
+
+// After Action Report: the two real readings (end-of-match clips), including OCR noise around the result and mode.
+{
+ const L=(text,frame,confidence=90)=>({text,frame,confidence});
+ const stats=[L('4128',[213,540,283,569]),L('SCORE',[220,590,273,608]),L('KILLS',[434,591,479,608]),L('ASSISTS',[632,590,698,608]),L('DEATHS',[843,591,906,608])];
+ const win=[L('6 victory',[64,186,400,274],35),L('] TEAM DEATHMATCH |',[174,293,361,309],72),L('SHIPMENT',[380,293,469,309],96),L('so 139',[119,337,363,386],44),...stats];
+ assert.equal(V.anchorIn([L('AFTER ACTION REPORT',[88,52,424,86])]).screen,'aar');
+ assert.deepEqual(Object.keys(V.statLabels(win)),['SCORE','KILLS','ASSISTS','DEATHS']);
+ assert.deepEqual(V.decodeAar(win,{SCORE:'4120',KILLS:'26',ASSISTS:'12',DEATHS:'21'},[L('; TOP. PERFORMER',[1169,330,1293,347],45),L('FINN LMG',[1253,374,1313,388])],catalog).match,
+  {result:'Victory',mode:'Team Deathmatch',map:'Shipment',score:4120,kills:26,assists:12,deaths:21,weapon:'FiNN LMG'});
+ const loss=V.decodeAar([L('© DEFEAT',[65,189,366,274],56),L('] TEAM DEATHMATCH |',[174,293,361,309],75),L('SHIPMENT',[380,293,469,309],96)],{SCORE:'3260',KILLS:'21',ASSISTS:'9',DEATHS:'21'},[L('SANG 9MM',[1253,374,1322,388],79)],catalog).match;
+ assert.equal(loss.result,'Defeat');assert.equal(loss.weapon,'SANG 9mm');assert.equal(loss.assists,9);
+ // A missing number, or no result heading, records nothing.
+ assert.equal(V.decodeAar(win,{SCORE:'4120',KILLS:'',ASSISTS:'12',DEATHS:'21'},[],catalog).match,null);
+ assert.equal(V.decodeAar(win.slice(1),{SCORE:'4120',KILLS:'26',ASSISTS:'12',DEATHS:'21'},[],catalog).match,null);
+ console.log('camo-vocab: After Action Report cases passed');
+}

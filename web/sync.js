@@ -41,6 +41,7 @@ function merge(base,mine,theirs){
   return {version:3,checks:mergeMap(base.checks,mine.checks,theirs.checks),goals,
     autoApplied:mergeMap(base.autoApplied,mine.autoApplied,theirs.autoApplied),
     categoryTotals:mergeMap(base.categoryTotals,mine.categoryTotals,theirs.categoryTotals),
+    matches:Object.values(mergeMap(byId(base.matches),byId(mine.matches),byId(theirs.matches))).sort((a,b)=>b.at.localeCompare(a.at)),
     mode:same(mine.mode,base.mode)?theirs.mode:mine.mode};
 }
 
@@ -91,7 +92,7 @@ function panel(){
     <h3>Your sync code</h3><p class="sync-code">${esc(sync.code)}</p>${copyButton('Copy sync code',sync.code)}
     <p class="sync-note">Enter this code on your phone or another browser. Anyone with it can <b>change</b> your progress, so keep it to your own devices.</p>
     <h3>Share link for friends</h3><p class="sync-link">${esc(shareUrl(sync.viewId))}</p>${copyButton('Copy share link',shareUrl(sync.viewId))} <button type="button" id="sync-rotate">Make a new link</button>
-    <p class="sync-note">Friends see your camo progress live, read-only. Your queue and notes stay private. A new link stops the old one working.</p>
+    <p class="sync-note">Friends see your camo progress and match stats live, read-only. Your queue and notes stay private. A new link stops the old one working.</p>
     ${lastError?`<p class="error">Last sync failed: ${esc(lastError)}</p>`:''}
     <p><button type="button" id="sync-now">Sync now</button> <button type="button" id="sync-off">Turn off on this browser</button></p>`
   :`<p>Keep your progress the same on your PC, phone and any other browser. No account needed: you get a sync code to enter on each device.</p>

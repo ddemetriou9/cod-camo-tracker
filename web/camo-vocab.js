@@ -43,7 +43,7 @@
   if(second&&second.cost<first.cost+margin&&label(second.candidate)!==label(first.candidate))return null;
   return first;
  }
- const ANCHORS={menu:'CAMO SELECT',results:'TOP PERFORMING WEAPONS'};
+ const ANCHORS={menu:'CAMO SELECT',results:'TOP PERFORMING WEAPONS',aar:'AFTER ACTION REPORT'};
  function anchorIn(lines){
   for(const line of lines)for(const [screen,text] of Object.entries(ANCHORS)){const hit=locate(line.text,text);if(hit&&hit.cost<=allowance(text))return {screen,line,cost:hit.cost};}
   return null;
@@ -158,6 +158,39 @@
   const c=hits[0].candidate;
   return {reward:{id:c.id,weapon:w,name:c.name,slot:c.slot,military:false},weaponLine:weapon.line};
  }
- const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,menuTab,ANCHORS,TARGETS};
+
+ /* ---- After Action Report (match stats) ---- */
+ const STAT_LABELS=['SCORE','KILLS','ASSISTS','DEATHS'];
+ const MODES=['TEAM DEATHMATCH','DOMINATION','HARDPOINT','KILL CONFIRMED','SEARCH AND DESTROY','FREE FOR ALL','HEADQUARTERS','CONTROL','GUNFIGHT','CYBER ATTACK','KILL ORDER','GRIND','INFECTED','GUN GAME','ALL OR NOTHING','ONE IN THE CHAMBER','SHARPSHOOTER','PROP HUNT','GROUND WAR','INVASION','WAR','RANKED PLAY'];
+ const title=text=>clean(text).toLowerCase().replace(/(^| )[a-z]/g,c=>c.toUpperCase());
+ // The four stat labels under the numbers; each number is read separately from just above its label.
+ function statLabels(lines){
+  const found={};
+  for(const line of lines)for(const word of STAT_LABELS){const hit=locate(line.text,word);if(hit&&hit.cost<=allowance(word)&&clean(line.text).length<=word.length+3&&!found[word])found[word]=line;}
+  return found;
+ }
+ /* Summary tab of the After Action Report: VICTORY/DEFEAT/DRAW, the mode box with the map beside it, the four
+    stats and the top-performing weapon. Returns a match only when the result and all four numbers are readable. */
+ function decodeAar(lines,numbers,weaponLines,catalog){
+  const result=lines.map(l=>({line:l,hit:best(l.text,['VICTORY','DEFEAT','DRAW'])})).find(r=>r.hit);
+  if(!result)return {match:null,issue:'No Victory, Defeat or Draw heading.'};
+  const stats={};
+  for(const word of STAT_LABELS){const t=String(numbers[word]??'').replace(/\s/g,'');if(!/^\d{1,6}$/.test(t))return {match:null,issue:word[0]+word.slice(1).toLowerCase()+' unreadable.'};stats[word.toLowerCase()]=Number(t);}
+  if(stats.kills>999||stats.deaths>999||stats.assists>999)return {match:null,issue:'Stat out of range.'};
+  // The mode sits in a white box under the result; the map name is the text to its right on the same row.
+  const below=lines.filter(l=>l.frame[1]>result.line.frame[1]&&l!==result.line);
+  const modeHit=below.map(l=>({line:l,hit:best(l.text,MODES,{margin:.5})})).find(m=>m.hit);
+  const modeLine=modeHit?.line||below.find(l=>/[A-Z]{4}/.test(clean(l.text))&&!statLabels([l])[clean(l.text)]);
+  let mode=modeHit?title(modeHit.hit.candidate):null,map=null;
+  if(modeLine){
+   const h=modeLine.frame[3]-modeLine.frame[1];
+   const side=below.find(l=>l!==modeLine&&l.frame[0]>=modeLine.frame[2]-h&&Math.abs(l.frame[1]-modeLine.frame[1])<h*.6&&l.confidence>=60);
+   const words=clean(side?.text||'').replace(/[0-9]/g,'').trim();
+   if(words.length>=3)map=title(words);
+  }
+  const weapon=weaponLines.length?rewardWeapon(weaponLines,catalog)?.weapon.name||null:null;
+  return {match:{result:title(result.hit.candidate),mode,map,...stats,weapon}};
+ }
+ const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,menuTab,statLabels,decodeAar,ANCHORS,TARGETS,MODES};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoVocab=api;
 })(typeof window==='object'?window:globalThis);

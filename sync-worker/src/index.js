@@ -1,6 +1,6 @@
 // MW4 Fieldnotes sync. One row per tracker: the edit code is the only key that can write,
 // a separate view id lets friends read. Only a hash of the edit code is stored.
-const MAX_BYTES = 512 * 1024;
+const MAX_BYTES = 1536 * 1024;// D1 rows top out at 2 MB; a few thousand matches fit comfortably
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -40,9 +40,9 @@ async function owner(request, env) {
   if (!row) throw new HttpError(404, 'No progress uses that sync code.');
   return row;
 }
-// Friends see camo progress only; goals and their notes stay private.
+// Friends see camo progress and match stats; goals and their notes stay private.
 function publicView(data) {
-  return {version: 3, checks: data.checks || {}, categoryTotals: data.categoryTotals || {}, goals: [], mode: data.mode};
+  return {version: 3, checks: data.checks || {}, categoryTotals: data.categoryTotals || {}, matches: data.matches || [], goals: [], mode: data.mode};
 }
 
 async function route(request, env) {
