@@ -39,6 +39,8 @@
   const strip=$('#watcher-status');strip.hidden=false;strip.dataset.state=status.phase==='error'?'error':status.running?'running':'stopped';
   strip.innerHTML='<strong>'+esc(status.running?'Browser tracker running':status.phase==='error'?'Browser tracker needs attention':'Browser tracker stopped')+'</strong><span>'+esc(status.message)+'</span>';
   $('#connection-dot').style.background=status.running?'var(--lime)':'var(--muted)';
+  const toggle=$('#tracker-toggle'),on=status.running||['starting','loading'].includes(status.phase);
+  toggle.setAttribute('aria-checked',String(on));toggle.querySelector('.switch-label').textContent=!on?'Tracking off':status.running&&status.phase!=='loading'?'Tracking on':'Starting…';
   const text=$('#browser-status');if(text)text.textContent=status.message;
   const start=$('#browser-start'),stop=$('#browser-stop');if(start)start.disabled=status.running;if(stop)stop.disabled=!status.running;
   const scan=$('#browser-scan');if(scan)scan.disabled=!status.running||['starting','loading','reading'].includes(status.phase);
@@ -72,5 +74,8 @@
   $('#browser-start').onclick=()=>tracker.start();$('#browser-scan').onclick=()=>{$('#browser-diagnostics').open=true;tracker.checkNow();};$('#browser-diagnostics').ontoggle=()=>{previewAt=0;renderDiagnostics(current);};$('#browser-stop').onclick=()=>tracker.stop();renderRecent();update(current);
  }
  $('#automation').onclick=panel;
+ // One click starts or stops tracking without opening the panel; the browser still asks which window to share.
+ const toggle=$('#tracker-toggle');toggle.hidden=false;
+ toggle.onclick=()=>{if(toggle.getAttribute('aria-checked')==='true')tracker.stop();else tracker.start();};
  window.addEventListener('pagehide',()=>tracker.stop());
 })();

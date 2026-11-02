@@ -37,3 +37,7 @@ body{font-size:15px;line-height:1.5}
 .shared-view [data-add-match],.shared-view [data-delete-match],.shared-view #stats-start-tracker{display:none}
 @media(max-width:640px){.match-form .form-row{grid-template-columns:1fr 1fr}.stats-panel{padding:14px 12px}}
 .stats-panel{overflow-x:auto}.stats-table thead th{white-space:normal;vertical-align:bottom}.stats-grid .stats-table th,.stats-grid .stats-table td{padding:7px 5px}.stats-grid .stats-table tbody th{white-space:normal}
+/* Header switch that starts or stops the browser tracker without opening its panel. */
+.tracker-toggle{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.switch-track{position:relative;width:34px;height:18px;border-radius:9px;background:#3a453a;border:1px solid var(--line);flex-shrink:0;transition:background .15s}.switch-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}.tracker-toggle[aria-checked=true] .switch-track{background:#3f5a26;border-color:var(--lime)}.tracker-toggle[aria-checked=true] .switch-thumb{transform:translateX(16px);background:var(--lime)}.shared-view .tracker-toggle{display:none}
+@media(prefers-reduced-motion:reduce){.switch-track,.switch-thumb{transition:none}}
+@media(max-width:640px){.tracker-toggle .switch-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
