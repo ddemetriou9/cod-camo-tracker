@@ -221,8 +221,9 @@ function renderLibrary(){const q=$('#search').value.toLowerCase();let images=[..
 // Totals for a set of matches: K/D is kills over deaths (kills alone when there were no deaths).
 function summarise(list){const n=list.length,sum=k=>list.reduce((t,m)=>t+m[k],0),kills=sum('kills'),deaths=sum('deaths'),wins=list.filter(m=>m.result==='Victory').length;return {n,wins,kills,deaths,assists:sum('assists'),winRate:n?Math.round(100*wins/n):0,kd:(deaths?kills/deaths:kills).toFixed(2),avgKills:n?(kills/n).toFixed(1):'0',avgScore:n?Math.round(sum('score')/n):0};}
 function breakdown(title,key,list){
-  const groups={};for(const m of list){const k=m[key]||'Not read';(groups[k]??=[]).push(m);}
-  const rows=Object.entries(groups).map(([k,ms])=>[k,summarise(ms)]).sort((a,b)=>b[1].n-a[1].n);
+  // A Map because names come from imported or shared data, where "__proto__" is a possible name.
+  const groups=new Map();for(const m of list){const k=m[key]||'Not read';groups.set(k,[...(groups.get(k)||[]),m]);}
+  const rows=[...groups].map(([k,ms])=>[k,summarise(ms)]).sort((a,b)=>b[1].n-a[1].n);
   return `<section class="stats-panel"><h2>${esc(title)}</h2><table class="stats-table"><thead><tr><th scope="col">${esc(title.replace(/^By /,''))}</th><th scope="col">Matches</th><th scope="col">Win %</th><th scope="col">K/D</th><th scope="col">Avg kills</th></tr></thead><tbody>${rows.map(([k,s])=>`<tr><th scope="row">${esc(k)}</th><td>${s.n}</td><td>${s.winRate}%</td><td>${s.kd}</td><td>${s.avgKills}</td></tr>`).join('')}</tbody></table></section>`;
 }
 function renderStats(){

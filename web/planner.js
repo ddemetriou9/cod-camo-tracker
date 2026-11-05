@@ -72,8 +72,9 @@
  }
  // Needs at least two modes with two matches each, so one good game does not decide it.
  function bestMode(list){
-  const groups={};for(const m of list)if(m.mode)(groups[m.mode]??=[]).push(m);
-  const ranked=Object.entries(groups).filter(([,ms])=>ms.length>=2).map(([name,ms])=>({name,n:ms.length,avg:ms.reduce((t,m)=>t+m.kills,0)/ms.length})).sort((a,b)=>b.avg-a.avg);
+  // A Map because modes come from imported or shared data, where "__proto__" is a possible name.
+  const groups=new Map();for(const m of list)if(m.mode)groups.set(m.mode,[...(groups.get(m.mode)||[]),m]);
+  const ranked=[...groups].filter(([,ms])=>ms.length>=2).map(([name,ms])=>({name,n:ms.length,avg:ms.reduce((t,m)=>t+m.kills,0)/ms.length})).sort((a,b)=>b.avg-a.avg);
   return ranked.length>=2?ranked[0]:null;
  }
 

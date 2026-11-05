@@ -110,4 +110,12 @@ assert.deepEqual(P.bestGroup([{tag:'longshot'},{tag:'pointblank'},{tag:'hipfire'
  assert.equal(P.plan({catalog,done:goldReady,matches,mode:'DMZ'}).overall,null);
  assert.equal(P.plan({catalog,done:goldReady,matches:matches.slice(0,3)}).overall,null);// Hardpoint has only one match
 }
+// Modes come from imported or shared data, so object-internal names must not break grouping.
+{
+ const m=mode=>({kills:10,mode,weapon:'M4'});
+ const matches=[m('__proto__'),m('__proto__'),m('constructor'),m('constructor')];
+ const r=P.plan({catalog,done:()=>false,matches});
+ assert.match(r.overall,/__proto__|constructor/);
+ assert.ok(pick(r,'M4').insights.length>0);
+}
 console.log('planner: all cases passed');
