@@ -7,7 +7,7 @@ import re
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / 'web'
 html = (WEB / 'index.html').read_text(encoding='utf-8-sig')
-for name in ('reward-parser.js', 'browser-capture.js', 'browser-tracker-ui.js', 'sync.js'):
+for name in ('reward-parser.js', 'browser-capture.js', 'camo-vocab.js', 'capture-v2.js', 'browser-tracker-ui.js', 'sync.js', 'planner.js'):
     html = re.sub(r'<script src="' + re.escape(name) + r'(?:\?[^"]*)?"></script>', '', html)
 
 # Inline the stylesheet, data and assets. Each picture is encoded just once;
@@ -17,7 +17,7 @@ for image in sorted((WEB / 'assets').glob('*.webp')):
     assets['assets/' + image.name] = 'data:image/webp;base64,' + base64.b64encode(image.read_bytes()).decode('ascii')
 for name in ('style.css', 'readability.css'):
     css = (WEB / name).read_text(encoding='utf-8-sig')
-    html = html.replace(f'<link rel="stylesheet" href="{name}">', '<style>\n' + css + '\n</style>')
+    html = re.sub(r'<link rel="stylesheet" href="' + re.escape(name) + r'(?:\?[^"]*)?">', lambda _: '<style>\n' + css + '\n</style>', html)
 
 app = (WEB / 'app.js').read_text(encoding='utf-8-sig')
 # Drop the Windows capture/API integration from this edition entirely.
@@ -34,7 +34,8 @@ app = app.replace('Reference images stay in this browser', 'Reference images sta
 assert 'fetch(' not in app and 'companion' not in app and 'automationAction' not in app
 
 catalog = (WEB / 'catalog.js').read_text(encoding='utf-8-sig')
-payload = 'window.NATIVE_MIGRATION=null;\n' + catalog + '\n' + '(()=>{const images=' + json.dumps(assets, separators=(',', ':')) + ';for(const item of window.CAMO_CATALOG.images){item.path=images[item.path];}for(const weapon of window.CAMO_CATALOG.weapons){if(weapon.image)weapon.image=images[weapon.image];}})();\n' + app
+planner = (WEB / 'planner.js').read_text(encoding='utf-8-sig')
+payload = planner + '\nwindow.NATIVE_MIGRATION=null;\n' + catalog + '\n' + '(()=>{const images=' + json.dumps(assets, separators=(',', ':')) + ';for(const item of window.CAMO_CATALOG.images){item.path=images[item.path];}for(const weapon of window.CAMO_CATALOG.weapons){if(weapon.image)weapon.image=images[weapon.image];}})();\n' + app
 payload = re.sub(r'</script', r'<\\/script', payload, flags=re.I)
 html = re.sub(r'<script src="catalog.js(?:\?[^\"]*)?"></script><script src="migration.js"></script><script src="app.js(?:\?[^\"]*)?"></script>', lambda _: '<script>\n' + payload + '\n</script>', html)
 html = re.sub(r'<button id="automation".*?</button>', '<span class="manual-edition" style="align-self:center;font-size:12px;color:var(--muted)">Manual edition</span>', html)
