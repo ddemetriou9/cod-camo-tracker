@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-11-10-v2-15';
+ const BUILD='2026-11-10-v2-16';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -249,10 +249,13 @@
    const [a,b]=glyphs[i],gw=b-a;let top=h,bottom=0;
    for(let y=0;y<h;y++)for(let x=a;x<b;x++)if(ink(x,y)){top=Math.min(top,y);bottom=Math.max(bottom,y);}
    const gh=bottom-top+1;if(gh<16||gw<5)return ch;
+   // Judged against this digit's own brightness: a cut-off from the whole crop moves with whatever else the crop holds.
+   const own=[];for(let y=top;y<=bottom;y++)for(let x=a;x<b;x++)own.push(L[y*w+x]);own.sort((p,q)=>p-q);
+   const localCut=(own[Math.floor(own.length*.1)]+own[Math.floor(own.length*.95)])/2,solid=(x,y)=>L[y*w+x]>localCut;
    let inside=0,unmatched=0;
-   for(let y=top+Math.round(gh*.12);y<=bottom-Math.round(gh*.12);y++)for(let x=a+Math.round(gw*.2);x<b-Math.round(gw*.2);x++)if(ink(x,y)){inside++;if(!ink(b-1-(x-a),y))unmatched++;}
+   for(let y=top+Math.round(gh*.12);y<=bottom-Math.round(gh*.12);y++)for(let x=a+Math.round(gw*.2);x<b-Math.round(gw*.2);x++)if(solid(x,y)){inside++;if(!solid(b-1-(x-a),y))unmatched++;}
    let rows=0,stroked=0;
-   for(let y=top+Math.round(gh*.2);y<=top+Math.round(gh*.4);y++){rows++;let hit=false;for(let x=b-1;x>=b-Math.max(2,Math.round(gw*.3))&&!hit;x--)hit=ink(x,y);stroked+=hit;}
+   for(let y=top+Math.round(gh*.2);y<=top+Math.round(gh*.4);y++){rows++;let hit=false;for(let x=b-1;x>=b-Math.max(2,Math.round(gw*.3))&&!hit;x--)hit=solid(x,y);stroked+=hit;}
    return unmatched/Math.max(1,inside)>=.45&&stroked/rows>=.6?'0':ch;
   }).join('');
  }
@@ -559,7 +562,8 @@
    for(const [word,line] of Object.entries(labels)){
     const [a,b,c,d]=line.frame,h=d-b,cx=(a+c)/2,frame=[Math.max(0,cx-h*3),Math.max(0,b-h*2.75),Math.min(W,cx+h*3),Math.max(1,b-h*1.05)];
     const got=await readLine(run,'aar-number',frame,'0123456789');if(!got)return null;
-    const digits=got.text.replace(/\D/g,'');numbers[word]=digits&&slashedZeros(video,frame,digits);
+    // The shape check needs each digit whole, so it looks a little higher than the tight crop given to OCR.
+    const digits=got.text.replace(/\D/g,'');numbers[word]=digits&&slashedZeros(video,[frame[0],Math.max(0,b-h*3.3),frame[2],Math.max(1,b-h*.9)],digits);
    }
    const weaponLines=await readArea(run,'aar-weapon',screen.regions.weapon,{limit:4});if(!weaponLines)return null;
    status.lastReading=['After Action Report: '+lines.map(l=>l.text).join(' / '),'Numbers: '+JSON.stringify(numbers),'Weapon: '+weaponLines.map(l=>l.text).join(' / ')].join('\n').slice(0,1600);
