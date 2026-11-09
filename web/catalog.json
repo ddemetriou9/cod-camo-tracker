@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkedAt": "2026-10-28",
+  "checkedAt": "2026-11-10",
   "weapons": [
     {
       "name": "Han 86",
@@ -83,6 +83,15 @@
       "codes": "https://codmunity.gg/weapon/mw4/cronen-squall"
     },
     {
+      "name": "Cronen Osprey",
+      "class": "Assault rifles",
+      "id": "CRONENOSPREY",
+      "season": 1,
+      "unlockVia": "Battle Pass tier 16",
+      "loadout": "https://wzstats.gg/best-loadouts/cronen-osprey-mw4",
+      "codes": "https://codmunity.gg/weapon/mw4/cronen-osprey"
+    },
+    {
       "name": "ISO Nightshade",
       "class": "Submachine guns",
       "id": "ISONIGHTSHADE",
@@ -131,6 +140,15 @@
       "unlockLevel": 46,
       "loadout": "https://wzstats.gg/best-loadouts/x-58-nyx-mw4",
       "codes": "https://codmunity.gg/weapon/mw4/x-58-nyx"
+    },
+    {
+      "name": "CSG-35",
+      "class": "Submachine guns",
+      "id": "CSG35",
+      "season": 1,
+      "unlockVia": "Battle Pass tier 36",
+      "loadout": "https://wzstats.gg/best-loadouts/csg-35-mw4",
+      "codes": "https://codmunity.gg/weapon/mw4/csg-35"
     },
     {
       "name": "Rezi 12",
@@ -10530,6 +10548,624 @@
           "source": "https://docs.google.com/spreadsheets/d/1bTeaSbvtP4tEiKPoqLKznznqnu3AzlhVouOJh1gM53w/edit"
         }
       ]
+    },
+    {
+      "id": "CRONENOSPREY:0",
+      "weapon": "Cronen Osprey",
+      "slot": 0,
+      "name": "Military 1",
+      "tier": "Military",
+      "unlockLevel": 9,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 9",
+          "target": 9,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 9. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:1",
+      "weapon": "Cronen Osprey",
+      "slot": 1,
+      "name": "Military 2",
+      "tier": "Military",
+      "unlockLevel": 13,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 13",
+          "target": 13,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 13. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:2",
+      "weapon": "Cronen Osprey",
+      "slot": 2,
+      "name": "Military 3",
+      "tier": "Military",
+      "unlockLevel": 16,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 16",
+          "target": 16,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 18. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:3",
+      "weapon": "Cronen Osprey",
+      "slot": 3,
+      "name": "Military 4",
+      "tier": "Military",
+      "unlockLevel": 20,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 20",
+          "target": 20,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 22. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:4",
+      "weapon": "Cronen Osprey",
+      "slot": 4,
+      "name": "Military 5",
+      "tier": "Military",
+      "unlockLevel": 23,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 23",
+          "target": 23,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 26. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:5",
+      "weapon": "Cronen Osprey",
+      "slot": 5,
+      "name": "Military 6",
+      "tier": "Military",
+      "unlockLevel": 26,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 26",
+          "target": 26,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 30. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:6",
+      "weapon": "Cronen Osprey",
+      "slot": 6,
+      "name": "Military 7",
+      "tier": "Military",
+      "unlockLevel": 29,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 29",
+          "target": 29,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 35. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:7",
+      "weapon": "Cronen Osprey",
+      "slot": 7,
+      "name": "Military 8",
+      "tier": "Military",
+      "unlockLevel": 33,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 33",
+          "target": 33,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 40. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:8",
+      "weapon": "Cronen Osprey",
+      "slot": 8,
+      "name": "In The Weeds",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "20 Hipfire Kills (players)",
+          "target": 20,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "75 Hipfire Kills (DMZ enemies)",
+          "target": 75,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:9",
+      "weapon": "Cronen Osprey",
+      "slot": 9,
+      "name": "Dark Ichor",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "50 Kills while ADS (players)",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "125 Kills while ADS (DMZ enemies)",
+          "target": 125,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:10",
+      "weapon": "Cronen Osprey",
+      "slot": 10,
+      "name": "Chained",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "2 Kills without Reloading 25 times (players)",
+          "target": 25,
+          "unit": "sets",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "Kills without Reloading 100 times (DMZ enemies)",
+          "target": 100,
+          "unit": "sets",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:11",
+      "weapon": "Cronen Osprey",
+      "slot": 11,
+      "name": "Gold",
+      "tier": "Completionist",
+      "gate": "Complete this weapon's eight Military and three Special camos.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "15 eliminations in one match",
+          "target": 15,
+          "unit": "count",
+          "confidence": "official",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "100 eliminations in one DMZ deployment",
+          "target": 100,
+          "unit": "count",
+          "confidence": "official",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:12",
+      "weapon": "Cronen Osprey",
+      "slot": 12,
+      "name": "Platinum",
+      "tier": "Completionist",
+      "gate": "Complete Gold on every weapon in this class.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "50 Headshots (players)",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey",
+          "issue": "Listed as a known issue in the Season 1 patch notes: Platinum may not track on this gun. Check whether it has been fixed before grinding it.",
+          "issueSource": "https://www.callofduty.com/patchnotes/2026/11/call-of-duty-modern-warfare-4-season-1-patch-notes"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "100 Headshots (DMZ enemies)",
+          "target": 100,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey",
+          "issue": "Listed as a known issue in the Season 1 patch notes: Platinum may not track on this gun. Check whether it has been fixed before grinding it.",
+          "issueSource": "https://www.callofduty.com/patchnotes/2026/11/call-of-duty-modern-warfare-4-season-1-patch-notes"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:13",
+      "weapon": "Cronen Osprey",
+      "slot": 13,
+      "name": "Harmonic Break",
+      "tier": "Completionist",
+      "gate": "Complete Platinum on 33 weapons.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "25 Double Kills (players)",
+          "target": 25,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "50 Double Kills (DMZ enemies)",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/cronen-osprey"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:0",
+      "weapon": "CSG-35",
+      "slot": 0,
+      "name": "Military 1",
+      "tier": "Military",
+      "unlockLevel": 8,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 8",
+          "target": 8,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 9. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:1",
+      "weapon": "CSG-35",
+      "slot": 1,
+      "name": "Military 2",
+      "tier": "Military",
+      "unlockLevel": 10,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 10",
+          "target": 10,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 13. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:2",
+      "weapon": "CSG-35",
+      "slot": 2,
+      "name": "Military 3",
+      "tier": "Military",
+      "unlockLevel": 14,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 14",
+          "target": 14,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 18. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:3",
+      "weapon": "CSG-35",
+      "slot": 3,
+      "name": "Military 4",
+      "tier": "Military",
+      "unlockLevel": 17,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 17",
+          "target": 17,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 22. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:4",
+      "weapon": "CSG-35",
+      "slot": 4,
+      "name": "Military 5",
+      "tier": "Military",
+      "unlockLevel": 19,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 19",
+          "target": 19,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 26. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:5",
+      "weapon": "CSG-35",
+      "slot": 5,
+      "name": "Military 6",
+      "tier": "Military",
+      "unlockLevel": 23,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 23",
+          "target": 23,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 30. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:6",
+      "weapon": "CSG-35",
+      "slot": 6,
+      "name": "Military 7",
+      "tier": "Military",
+      "unlockLevel": 27,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 27",
+          "target": 27,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 35. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:7",
+      "weapon": "CSG-35",
+      "slot": 7,
+      "name": "Military 8",
+      "tier": "Military",
+      "unlockLevel": 29,
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon level 29",
+          "target": 29,
+          "unit": "weapon level",
+          "confidence": "conflicting",
+          "note": "Guides disagree on this gun's levels; another lists level 40. Check it in game.",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:8",
+      "weapon": "CSG-35",
+      "slot": 8,
+      "name": "Polyhedron",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "3 player eliminations without dying 20 times",
+          "target": 20,
+          "unit": "sets",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "3 enemy eliminations without taking damage 30 times",
+          "target": 30,
+          "unit": "sets",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:9",
+      "weapon": "CSG-35",
+      "slot": 9,
+      "name": "Rind",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "50 player eliminations using a Silencer",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "125 enemy eliminations using a Silencer",
+          "target": 125,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:10",
+      "weapon": "CSG-35",
+      "slot": 10,
+      "name": "Black Grip",
+      "tier": "Special",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "50 player eliminations while moving",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "100 enemy eliminations while moving",
+          "target": 100,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:11",
+      "weapon": "CSG-35",
+      "slot": 11,
+      "name": "Gold",
+      "tier": "Completionist",
+      "gate": "Complete this weapon's eight Military and three Special camos.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "15 eliminations in one match",
+          "target": 15,
+          "unit": "count",
+          "confidence": "official",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "100 eliminations in one DMZ deployment",
+          "target": 100,
+          "unit": "count",
+          "confidence": "official",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:12",
+      "weapon": "CSG-35",
+      "slot": 12,
+      "name": "Platinum",
+      "tier": "Completionist",
+      "gate": "Complete Gold on every weapon in this class.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "25 player eliminations from Behind",
+          "target": 25,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/csg-35",
+          "issue": "Listed as a known issue in the Season 1 patch notes: Platinum may not track on this gun. Check whether it has been fixed before grinding it.",
+          "issueSource": "https://www.callofduty.com/patchnotes/2026/11/call-of-duty-modern-warfare-4-season-1-patch-notes"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "75 enemy eliminations from Behind",
+          "target": 75,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/csg-35",
+          "issue": "Listed as a known issue in the Season 1 patch notes: Platinum may not track on this gun. Check whether it has been fixed before grinding it.",
+          "issueSource": "https://www.callofduty.com/patchnotes/2026/11/call-of-duty-modern-warfare-4-season-1-patch-notes"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:13",
+      "weapon": "CSG-35",
+      "slot": 13,
+      "name": "Harmonic Break",
+      "tier": "Completionist",
+      "gate": "Complete Platinum on 33 weapons.",
+      "variants": [
+        {
+          "mode": "Multiplayer",
+          "requirement": "50 Hipfire Kills (players)",
+          "target": 50,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        },
+        {
+          "mode": "DMZ",
+          "requirement": "100 Hipfire Kills (DMZ enemies)",
+          "target": 100,
+          "unit": "count",
+          "confidence": "community",
+          "source": "https://warzoneloadout.games/mw4/csg-35"
+        }
+      ]
     }
   ],
   "images": [
@@ -11124,13 +11760,34 @@
     {
       "name": "Weapon import codes per weapon (linked, not copied)",
       "url": "https://codmunity.gg/mw4"
+    },
+    {
+      "name": "Season 1 Special camos, per-weapon checklist",
+      "url": "https://gamerant.com/call-of-duty-cod-modern-warfare-4-mw4-all-mastery-camo-challenges-checklist/"
+    },
+    {
+      "name": "Season 1 Military levels and Completionist camos, weapon guides",
+      "url": "https://warzoneloadout.games/mw4/cronen-osprey"
+    },
+    {
+      "name": "Season 1 announcement",
+      "url": "https://www.callofduty.com/blog/2026/10/call-of-duty-modern-warfare-4-warzone-season-1-announcement"
+    },
+    {
+      "name": "Season 1 patch notes (Platinum known issue)",
+      "url": "https://www.callofduty.com/patchnotes/2026/11/call-of-duty-modern-warfare-4-season-1-patch-notes"
+    },
+    {
+      "name": "Season 1 weapons, Battle Pass tiers",
+      "url": "https://www.ezg.com/blog/cod-mw4-season-1-weapons-guide-all-new-guns-and-attachments"
     }
   ],
   "notes": [
     "Community levels and objectives can be outdated. The source flags estimated unlock levels, some pistol/melee counts, FiNN special 3 MP and KG-7 special 1 DMZ.",
     "Military entries retain numbered labels where individual in-game names are not independently verified.",
     "Official images are reference sheets, not a fabricated per-camo preview. Game artwork belongs to Activision.",
-    "Weapon unlock levels are player levels from two community guides that agree; one flags a few as unconfirmed before launch. Classic Prestige relocks level unlocks; Regular Prestige keeps them."
+    "Weapon unlock levels are player levels from two community guides that agree; one flags a few as unconfirmed before launch. Classic Prestige relocks level unlocks; Regular Prestige keeps them.",
+    "Season 1 added the Cronen Osprey and CSG-35. Guides disagree on their Military levels. Whether they count towards class Platinum is unconfirmed; Harmonic Break is reported as Platinum on the 33 launch weapons. The order of the CSG-35 Special camos differs between guides."
   ],
   "extras": [
     {
@@ -13685,6 +14342,158 @@
           "target": null,
           "unit": "count",
           "confidence": "unknown",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:prestige:0",
+      "weapon": "Cronen Osprey",
+      "slot": -1,
+      "name": "Pyroclast",
+      "tier": "Weapon Prestige",
+      "checkKey": "CRONEN OSPREY|14",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Prestige this weapon once",
+          "target": 1,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:prestige:1",
+      "weapon": "Cronen Osprey",
+      "slot": -1,
+      "name": "Pyroclast Terminus",
+      "tier": "Weapon Prestige",
+      "checkKey": "CRONEN OSPREY|15",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Reach maximum weapon level at Weapon Prestige 1",
+          "target": 1,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:prestige:2",
+      "weapon": "Cronen Osprey",
+      "slot": -1,
+      "name": "Pyroclast Scatter",
+      "tier": "Weapon Prestige",
+      "checkKey": "CRONEN OSPREY|16",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon Prestige Master level 150",
+          "target": 150,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CRONENOSPREY:prestige:3",
+      "weapon": "Cronen Osprey",
+      "slot": -1,
+      "name": "Pyroclast Cascade",
+      "tier": "Weapon Prestige",
+      "checkKey": "CRONEN OSPREY|17",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon Prestige Master level 250",
+          "target": 250,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:prestige:0",
+      "weapon": "CSG-35",
+      "slot": -1,
+      "name": "Pyroclast",
+      "tier": "Weapon Prestige",
+      "checkKey": "CSG 35|14",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Prestige this weapon once",
+          "target": 1,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:prestige:1",
+      "weapon": "CSG-35",
+      "slot": -1,
+      "name": "Pyroclast Terminus",
+      "tier": "Weapon Prestige",
+      "checkKey": "CSG 35|15",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Reach maximum weapon level at Weapon Prestige 1",
+          "target": 1,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:prestige:2",
+      "weapon": "CSG-35",
+      "slot": -1,
+      "name": "Pyroclast Scatter",
+      "tier": "Weapon Prestige",
+      "checkKey": "CSG 35|16",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon Prestige Master level 150",
+          "target": 150,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
+          "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
+        }
+      ]
+    },
+    {
+      "id": "CSG35:prestige:3",
+      "weapon": "CSG-35",
+      "slot": -1,
+      "name": "Pyroclast Cascade",
+      "tier": "Weapon Prestige",
+      "checkKey": "CSG 35|17",
+      "variants": [
+        {
+          "mode": "Shared",
+          "requirement": "Weapon Prestige Master level 250",
+          "target": 250,
+          "unit": "weapon progression",
+          "confidence": "uncertain",
+          "note": "Assumed to match the launch weapons. Check it in game.",
           "source": "https://www.callofduty.com/uk/en/blog/2026/10/call-of-duty-modern-warfare-4-ready-for-launch-progression-prestige"
         }
       ]

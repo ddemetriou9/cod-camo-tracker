@@ -81,7 +81,7 @@
  function taskFor(camo,mode,floor){
   const v=camo.variants.find(x=>x.mode===mode)||camo.variants[0];
   const opensAt=camo.tier==='Special'&&camo.unlockLevel>floor?camo.unlockLevel:null;
-  return {id:camo.id,name:camo.name,tier:camo.tier,requirement:v.requirement,target:v.target,unit:v.unit,confidence:v.confidence,tag:classify(v.requirement),opensAt,estimated:opensAt!=null&&camo.unlockConfidence==='community-estimate',together:false};
+  return {id:camo.id,name:camo.name,tier:camo.tier,requirement:v.requirement,target:v.target,unit:v.unit,confidence:v.confidence,issue:v.issue||null,tag:classify(v.requirement),opensAt,estimated:opensAt!=null&&camo.unlockConfidence==='community-estimate',together:false};
  }
  function planWeapon(weapon,{byWeapon,done,mode,matches,classGold,platinumAll}){
   const camos=byWeapon.get(weapon.name)||[],bySlot=slot=>camos.find(c=>c.slot===slot);
@@ -98,7 +98,8 @@
    levelsLeft=Math.max(0,...[...milLeft,...specLeft].map(c=>levelOf(c)-floor));
    const left=milLeft.length+specLeft.length;
    tasks=left?[...(milLeft.length?[make(milLeft[0])]:[]),...specLeft.map(make)]:[make(bySlot(11))];
-   effort=levelsLeft+specLeft.length*12+6;
+   // Season guns must be earned first, so one not started yet is never the first suggestion.
+   effort=levelsLeft+specLeft.length*12+6+(weapon.season&&!camos.some(c=>done(weapon.name,c.slot))?1000:0);
    headline=left?`${plural(left+1,'camo')} from Gold`+(levelsLeft?` · at most ${plural(levelsLeft,'weapon level')} to go`:''):'Gold is ready to earn';
   }else if(!done(weapon.name,12)){
    if(klass.done<klass.total)return null;// the rest of the class comes first
@@ -116,8 +117,11 @@
  function plan({catalog,done,mode='Multiplayer',matches=[],bandOf=null}){
   const byWeapon=new Map();for(const c of catalog.challenges)(byWeapon.get(c.weapon)||byWeapon.set(c.weapon,[]).get(c.weapon)).push(c);
   const classGold=new Map();
-  for(const w of catalog.weapons){const k=classGold.get(w.class)||{done:0,total:0};k.total++;if(done(w.name,11))k.done++;classGold.set(w.class,k);}
-  const platinumAll=catalog.weapons.every(w=>done(w.name,12));
+  // Platinum and Harmonic Break are reported as gated on the launch weapons, so season guns do not hold them back.
+  const launch=catalog.weapons.filter(w=>!w.season);
+  for(const w of catalog.weapons){if(!classGold.has(w.class))classGold.set(w.class,{done:0,total:0});}
+  for(const w of launch){const k=classGold.get(w.class);k.total++;if(done(w.name,11))k.done++;}
+  const platinumAll=launch.every(w=>done(w.name,12));
   const ctx={byWeapon,done,mode,matches,classGold,platinumAll};
   const picks=catalog.weapons.map(w=>planWeapon(w,ctx)).filter(Boolean);
   const left=p=>p.classGold.total-p.classGold.done;

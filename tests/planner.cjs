@@ -30,7 +30,7 @@ assert.deepEqual(P.bestGroup([{tag:'longshot'},{tag:'pointblank'},{tag:'hipfire'
 // Nothing recorded: every weapon is offered, starting from its first Military level and all three Specials.
 {
  const r=P.plan({catalog,done:()=>false});
- assert.equal(r.picks.length,33);assert.equal(r.recorded,false);assert.equal(r.finished,false);
+ assert.equal(r.picks.length,catalog.weapons.length);assert.equal(r.recorded,false);assert.equal(r.finished,false);
  const m4=pick(r,'M4');
  assert.equal(m4.phase,'gold');assert.equal(m4.tasks.length,4);assert.equal(m4.tasks[0].name,'Military 1');
  assert.match(m4.headline,/^12 camos from Gold/);
@@ -61,7 +61,7 @@ assert.deepEqual(P.bestGroup([{tag:'longshot'},{tag:'pointblank'},{tag:'hipfire'
 }
 // Platinum waits for the whole class; a class of one opens straight away.
 {
- const classmates=catalog.weapons.filter(w=>w.class==='Assault rifles').map(w=>w.name);
+ const classmates=catalog.weapons.filter(w=>w.class==='Assault rifles'&&!w.season).map(w=>w.name);
  const one=doneWith(...allSlots(classmates[0],12));
  assert.equal(pick(P.plan({catalog,done:one}),classmates[0]),undefined);
  const all=doneWith(...classmates.flatMap(w=>allSlots(w,12)));
@@ -77,7 +77,7 @@ assert.deepEqual(P.bestGroup([{tag:'longshot'},{tag:'pointblank'},{tag:'hipfire'
 {
  const every=n=>catalog.weapons.flatMap(w=>allSlots(w.name,n));
  const r=P.plan({catalog,done:doneWith(...every(13))});
- assert.equal(r.picks.length,33);assert.ok(r.picks.every(p=>p.phase==='harmonic'));
+ assert.equal(r.picks.length,catalog.weapons.length);assert.ok(r.picks.every(p=>p.phase==='harmonic'));
  const missing=P.plan({catalog,done:doneWith(...every(13).filter(k=>k!=='M4|12'))});
  assert.deepEqual(missing.picks.map(p=>p.weapon.name),['M4']);assert.equal(missing.picks[0].phase,'platinum');
  const finished=P.plan({catalog,done:doneWith(...every(14))});
@@ -117,5 +117,21 @@ assert.deepEqual(P.bestGroup([{tag:'longshot'},{tag:'pointblank'},{tag:'hipfire'
  const r=P.plan({catalog,done:()=>false,matches});
  assert.match(r.overall,/__proto__|constructor/);
  assert.ok(pick(r,'M4').insights.length>0);
+}
+// Season guns: never the first suggestion until started, and they do not hold back launch-weapon gates.
+{
+ const fresh=P.plan({catalog,done:()=>false});
+ assert.ok(!fresh.picks.slice(0,33).some(p=>p.weapon.season),'an unstarted season gun was suggested before launch guns');
+ const started=pick(P.plan({catalog,done:doneWith('CSG-35|0')}),'CSG-35');
+ assert.ok(started.effort<1000);
+ assert.equal(P.plan({catalog,done:doneWith('CSG-35|0')}).picks.findIndex(p=>p.weapon.name==='CSG-35')<33,true);
+ const ars=catalog.weapons.filter(w=>w.class==='Assault rifles'&&!w.season).map(w=>w.name);
+ const r=P.plan({catalog,done:doneWith(...ars.flatMap(w=>allSlots(w,12)))});
+ assert.equal(pick(r,ars[0]).phase,'platinum');// the Osprey being unstarted does not block Platinum
+ assert.equal(pick(r,'Cronen Osprey').classGold.total,ars.length);
+ const launchPlat=catalog.weapons.filter(w=>!w.season).flatMap(w=>allSlots(w.name,13));
+ assert.equal(pick(P.plan({catalog,done:doneWith(...launchPlat)}),'M4').phase,'harmonic');// Harmonic needs the launch weapons only
+ const osprey=pick(P.plan({catalog,done:doneWith(...allSlots('Cronen Osprey',12),...ars.flatMap(w=>allSlots(w,12)))}),'Cronen Osprey');
+ assert.equal(osprey.phase,'platinum');assert.match(osprey.tasks[0].issue,/known issue/);
 }
 console.log('planner: all cases passed');

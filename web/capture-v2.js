@@ -7,7 +7,7 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-11-03-v2-14';
+ const BUILD='2026-11-10-v2-15';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
@@ -406,6 +406,24 @@
   function menuEntries(decoded){return decoded.categories.map(c=>({kind:'category',category:c.category,weapon:decoded.weapon,current:c.current,target:c.target,challenge:c.category+' category unlocks',
    // Same receipt prefix as v1, so an unchanged reading never undoes a manual correction made after a v1 save.
    observedAt:'browser-menu-v1:'+c.current+'/'+c.target}));}
+  /* A thin label can be missed when the whole column is searched, but on its own in a narrow strip it stands out. The
+     four rows have the same spacing on every weapon (measured on four menus), so two found rows place the others.
+     A row found this way still has to pass the second read and the padlock check like any other. */
+  async function findMissingRows(run,lines,decoded,W,H){
+   const rowAt={MILITARY:0,SPECIAL:.43,COMPLETIONIST:.75,PRESTIGE:1};
+   const found=[...decoded.categories].sort((p,q)=>rowAt[p.category]-rowAt[q.category]),a=found[0].line.frame,b=found.at(-1).line.frame;
+   const perRow=(b[1]-a[1])/(rowAt[found.at(-1).category]-rowAt[found[0].category]),h=a[3]-a[1];
+   for(const category of Object.keys(rowAt).filter(c=>!decoded.categories.some(x=>x.category===c))){
+    const y=a[1]+(rowAt[category]-rowAt[found[0].category])*perRow;
+    const boxes=segment(video,clampRegion([a[0]-h,y-h*1.4,h*13,h*3.8],W,H)).filter(f=>f[2]-f[0]>=(f[3]-f[1])*3).sort((p,q)=>Math.abs(p[1]-y)-Math.abs(q[1]-y));
+    for(const box of boxes.slice(0,2)){
+     const got=await readLine(run,'menu',box);if(!got)return null;
+     const next=V.decodeMenu([...lines,got].sort((p,q)=>p.frame[1]-q.frame[1]||p.frame[0]-q.frame[0]),catalog);
+     if(next.categories.some(x=>x.category===category)){lines.push(got);lines.sort((p,q)=>p.frame[1]-q.frame[1]||p.frame[0]-q.frame[0]);decoded=next;note('menu-row-recovered',{category,text:got.text.slice(0,40)});break;}
+    }
+   }
+   return decoded;
+  }
   async function readMenu(run,W,H){
    const u=screen.u;
    if(pending&&pending.kind==='menu'){
@@ -477,7 +495,8 @@
    // Menu text lines are wide; sidebar icons and the level number are narrow and would use up the read budget.
    const lines=await readArea(run,'menu',screen.regions.column,{limit:20,minAspect:3});if(!lines)return;
    area.read=area.prev;area.readAt=now();screen.attempts++;
-   const decoded=V.decodeMenu(lines,catalog);
+   let decoded=V.decodeMenu(lines,catalog);
+   if(decoded.weapon&&decoded.categories.length>=2&&decoded.categories.length<4){decoded=await findMissingRows(run,lines,decoded,W,H);if(!decoded)return;}
    status.lastReading=lines.map(l=>l.text+' ('+Math.round(l.confidence)+'%)').join('\n').slice(0,1600);
    if(!decoded.weapon||!decoded.categories.length){reject('menu',decoded.issues.join(' ')||'No category totals read.',lines);screen.retry=true;report('watching',(decoded.weapon?decoded.weapon+': ':'')+(decoded.issues[0]||'No category totals read.')+' Will read again when the menu changes.');return;}
    pending={kind:'menu',decoded,weaponLine:decoded.weaponLine,categoryLines:decoded.categories.map(c=>c.parts),tiles:groupTiles(video,decoded.categories,W,H),at:now(),view:area.prev};
