@@ -7,7 +7,7 @@ const norm=s=>String(s??'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().repl
 const canonical=s=>norm(s)==='COMBAT KNIFE'?'FSS CARBON EDGE 1095':norm(s);
 const slotKey=(w,s)=>canonical(w)+'|'+s;
 const KEY='mw4.fieldnotes.v1';
-let state={version:3,checks:{},goals:[],matches:[],mode:'Multiplayer'},view='arsenal',classFilter='All',selected=catalog.weapons.find(w=>w.name==='M4')||catalog.weapons[0],detailTab='camos',mediaFilter='all',userMedia=[],toastTimer;
+let state={version:3,checks:{},goals:[],matches:[],lifetime:null,mode:'Multiplayer'},view='arsenal',classFilter='All',selected=catalog.weapons.find(w=>w.name==='M4')||catalog.weapons[0],detailTab='camos',mediaFilter='all',userMedia=[],toastTimer;
 // The chosen Arsenal order is a per-browser convenience; storage can be unavailable.
 let arsenalOrder='class';try{if(localStorage.getItem('mw4.arsenalOrder')==='prestige')arsenalOrder='prestige';}catch{}
 let auto={connected:false,running:false,message:'Capture is stopped.',entries:[],interval:4};
@@ -36,7 +36,7 @@ function validate(input){
   });
   if(goals.filter(g=>g.tracked).length>6)throw Error('Pin up to six goals. Untrack one first.');
   const checks={};for(const [key,value] of Object.entries(input.checks)){if(key.length>500||typeof value!=='boolean')throw Error('Invalid camo record.');checks[key]=value;}
-  const categoryTotals={};if(input.categoryTotals&&typeof input.categoryTotals==='object'&&!Array.isArray(input.categoryTotals)){const totals=Object.entries(input.categoryTotals);if(totals.length>1000)throw Error('Too many category totals.');for(const [key,v] of totals){if(key.length>160||!v||!Number.isInteger(v.current)||!Number.isInteger(v.target)||v.current<0||v.current>v.target||v.target<1||v.target>8||typeof v.observedAt!=='string'||v.observedAt.length>80)throw Error('Invalid category total.');Object.defineProperty(categoryTotals,key,{value:{current:v.current,target:v.target,observedAt:v.observedAt},enumerable:true,writable:true,configurable:true});}}const autoApplied={};if(input.autoApplied&&typeof input.autoApplied==='object'&&!Array.isArray(input.autoApplied)){const receipts=Object.entries(input.autoApplied);if(receipts.length>5000)throw Error('Too many automatic records.');for(const [key,value] of receipts){if(key.length>200||typeof value!=='string'||value.length>150)throw Error('Invalid automatic record.');Object.defineProperty(autoApplied,key,{value,enumerable:true,writable:true,configurable:true});}}const matches=validMatches(input.matches);return {version:3,checks,goals,autoApplied,categoryTotals,matches,mode:input.mode==='DMZ'?'DMZ':'Multiplayer'};
+  const categoryTotals={};if(input.categoryTotals&&typeof input.categoryTotals==='object'&&!Array.isArray(input.categoryTotals)){const totals=Object.entries(input.categoryTotals);if(totals.length>1000)throw Error('Too many category totals.');for(const [key,v] of totals){if(key.length>160||!v||!Number.isInteger(v.current)||!Number.isInteger(v.target)||v.current<0||v.current>v.target||v.target<1||v.target>8||typeof v.observedAt!=='string'||v.observedAt.length>80)throw Error('Invalid category total.');Object.defineProperty(categoryTotals,key,{value:{current:v.current,target:v.target,observedAt:v.observedAt},enumerable:true,writable:true,configurable:true});}}const autoApplied={};if(input.autoApplied&&typeof input.autoApplied==='object'&&!Array.isArray(input.autoApplied)){const receipts=Object.entries(input.autoApplied);if(receipts.length>5000)throw Error('Too many automatic records.');for(const [key,value] of receipts){if(key.length>200||typeof value!=='string'||value.length>150)throw Error('Invalid automatic record.');Object.defineProperty(autoApplied,key,{value,enumerable:true,writable:true,configurable:true});}}const matches=validMatches(input.matches);return {version:3,checks,goals,autoApplied,categoryTotals,matches,lifetime:validLifetime(input.lifetime),mode:input.mode==='DMZ'?'DMZ':'Multiplayer'};
 }
 // Match stats from the After Action Report (or typed in). Older plans have none.
 const RESULTS=['Victory','Defeat','Draw'];
@@ -50,6 +50,20 @@ function validMatches(input){
     const weapon=m.weapon==null?null:catalog.weapons.find(w=>canonical(w.name)===canonical(m.weapon))?.name??null;
     return {id:m.id,at:m.at,result:m.result,mode:m.mode||null,map:m.map||null,score:m.score,kills:m.kills,assists:m.assists,deaths:m.deaths,weapon,source:m.source==='manual'?'manual':'auto'};
   });
+}
+// Lifetime stats from the Combat Record (or typed in), with earlier snapshots to show change over time.
+function validLifetime(input){
+  if(input==null)return null;
+  const num=(v,max)=>v==null||(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=max);
+  const fields=o=>o&&typeof o==='object'&&typeof o.at==='string'&&o.at.length<=40&&['kills','deaths','wins','losses','bestStreak'].every(k=>num(o[k],1e10)&&(o[k]==null||Number.isInteger(o[k])))&&num(o.hours,1e6)&&num(o.spm,1e6);
+  const pick=o=>({at:o.at,kills:o.kills,deaths:o.deaths,wins:o.wins??null,losses:o.losses??null,bestStreak:o.bestStreak??null,spm:o.spm??null,hours:o.hours??null});
+  if(!fields(input)||!Number.isInteger(input.kills)||!Number.isInteger(input.deaths)||!Array.isArray(input.history??[])||(input.history||[]).length>50||!(input.history||[]).every(fields))throw Error('Invalid lifetime stats.');
+  return {...pick(input),source:input.source==='manual'?'manual':'auto',history:(input.history||[]).map(pick)};
+}
+function setLifetime(r,source='auto'){
+  const old=state.lifetime;
+  if(old&&['kills','deaths','wins','losses'].every(k=>old[k]===r[k]))return 'unchanged';
+  return commit(()=>{const {history=[],source:_,...snap}=old||{};state.lifetime={...r,at:new Date().toISOString(),source,history:old?[snap,...history].slice(0,50):[]};})?'saved':'failed';
 }
 // The same report can be reopened or read again after a restart; identical stats within three hours count once.
 function addMatch(m,source='auto'){
@@ -228,12 +242,37 @@ function breakdown(title,key,list){
   const rows=[...groups].map(([k,ms])=>[k,summarise(ms)]).sort((a,b)=>b[1].n-a[1].n);
   return `<section class="stats-panel"><h2>${esc(title)}</h2><table class="stats-table"><thead><tr><th scope="col">${esc(title.replace(/^By /,''))}</th><th scope="col">Matches</th><th scope="col">Win %</th><th scope="col">K/D</th><th scope="col">Avg kills</th></tr></thead><tbody>${rows.map(([k,s])=>`<tr><th scope="row">${esc(k)}</th><td>${s.n}</td><td>${s.winRate}%</td><td>${s.kd}</td><td>${s.avgKills}</td></tr>`).join('')}</tbody></table></section>`;
 }
+// Our own scale, for fun: it is based only on K/D, so it says nothing about objective play.
+const KD_TIERS=[[2.5,'Legend'],[1.7,'Commander'],[1.3,'Elite'],[1,'Veteran'],[.7,'Regular'],[0,'Recruit']];
+const kdOf=(k,d)=>d?k/d:k;
+const fmt=n=>Number(n).toLocaleString();
+function lifetimeTile(value,label){return value==null?'':`<div><strong>${value}</strong><span>${esc(label)}</span></div>`;}
+function renderLifetime(){
+  const l=state.lifetime,edit=`<button data-edit-lifetime="true">${l?'Update by hand':'+ Enter by hand'}</button>`;
+  if(!l)return `<section class="stats-panel lifetime"><div class="stats-heading"><h2>Lifetime stats</h2>${edit}</div><p class="plan-note">Open your Combat Record in the game with the tracker on and your lifetime stats will appear here.</p></section>`;
+  const kd=kdOf(l.kills,l.deaths),tier=KD_TIERS.find(([from])=>kd>=from)[1],games=l.wins!=null&&l.losses!=null?l.wins+l.losses:0,prev=l.history[0];
+  const recent=state.matches.slice(0,20),form=recent.length>=5?summarise(recent):null,diff=form?Number(form.kd)-kd:0;
+  const change=prev?[`+${fmt(Math.max(0,l.kills-prev.kills))} kills`,l.wins!=null&&prev.wins!=null?`+${fmt(Math.max(0,l.wins-prev.wins))} wins`:'',`K/D ${(kd-kdOf(prev.kills,prev.deaths)>=0?'up ':'down ')+Math.abs(kd-kdOf(prev.kills,prev.deaths)).toFixed(3)}`].filter(Boolean).join(' · ')+` since ${new Date(prev.at).toLocaleDateString()}`:'';
+  return `<section class="stats-panel lifetime"><div class="stats-heading"><div><h2>Lifetime stats <span class="kd-tier">${tier}</span></h2><small>${l.source==='manual'?'Entered by hand':'Read from your Combat Record'} on ${esc(new Date(l.at).toLocaleDateString())}. Rank is our own K/D scale, just for fun.</small></div>${edit}</div><div class="lifetime-grid">${lifetimeTile(kd.toFixed(2),'K/D')}${lifetimeTile(games?Math.round(100*l.wins/games)+'%':null,'Win rate')}${lifetimeTile(fmt(l.kills),'Kills')}${lifetimeTile(fmt(l.deaths),'Deaths')}${lifetimeTile(l.wins==null?null:fmt(l.wins),'Wins')}${lifetimeTile(l.hours==null?null:fmt(Math.round(l.hours))+' h','Time played')}${lifetimeTile(l.bestStreak==null?null:fmt(l.bestStreak),'Best streak')}${lifetimeTile(l.spm==null?null:fmt(l.spm),'Score per minute')}</div>${form?`<p class="plan-insight">Last ${recent.length} recorded matches: <b>${form.kd} K/D</b>, ${Math.abs(diff)<.005?'level with':Math.abs(diff).toFixed(2)+(diff>0?' above':' below')} your lifetime.</p>`:''}${change?`<p class="plan-note">${esc(change)}</p>`:''}</section>`;
+}
+function lifetimeForm(){
+  const l=state.lifetime||{},input=(id,label,value,attrs='')=>`<label>${label}<input id="life-${id}" type="number" min="0" ${attrs} value="${value??''}"></label>`;
+  info('Lifetime stats',`<form id="life-form" class="match-form"><div class="form-row">${input('kills','Kills',l.kills,'required')}${input('deaths','Deaths',l.deaths,'required')}${input('wins','Wins',l.wins)}${input('losses','Losses',l.losses)}${input('hours','Hours played',l.hours==null?null:Math.round(l.hours))}${input('bestStreak','Best streak',l.bestStreak)}${input('spm','Score per minute',l.spm)}</div><p id="life-error" class="error" role="alert"></p><div class="dialog-actions"><button type="button" class="close-dialog">Cancel</button><button class="primary">Save</button></div></form>`);
+  $('#life-form').onsubmit=e=>{e.preventDefault();const r={};for(const k of ['kills','deaths','wins','losses','hours','bestStreak','spm']){const v=$('#life-'+k).value;r[k]=v===''?null:Number(v);}for(const k of ['kills','deaths','wins','losses','bestStreak'])if(r[k]!=null&&!Number.isInteger(r[k])){$('#life-error').textContent='Use whole numbers for counts.';return;}const before=state.lifetime;if(setLifetime(r,'manual')==='failed'){state.lifetime=before;$('#life-error').textContent='Check the numbers and try again.';return;}$('#info-dialog').close();toast('Lifetime stats saved.');};
+}
+// Matches on today's date, and the latest run of matches with no gap over two hours.
+function sessionTotals(){
+  const today=new Date().toDateString(),day=state.matches.filter(m=>new Date(m.at).toDateString()===today),session=[];
+  for(const m of state.matches){if(session.length&&Date.parse(session.at(-1).at)-Date.parse(m.at)>2*3600e3)break;session.push(m);}
+  const row=(label,list)=>{const s=summarise(list);return `<div><strong>${label}</strong><span>${s.n} match${s.n===1?'':'es'} · ${s.wins} won · ${s.kd} K/D · ${s.kills} kills</span></div>`;};
+  return `<div class="session-totals">${row('This session',session)}${day.length?row('Today',day):''}</div>`;
+}
 function renderStats(){
   const q=$('#search').value.toLowerCase(),list=state.matches.filter(m=>[m.result,m.mode,m.map,m.weapon].join(' ').toLowerCase().includes(q));
   const add='<button data-add-match="true">+ Add a match by hand</button>';
-  if(!state.matches.length){$('#content').innerHTML=`<div class="empty"><p class="eyebrow">NO MATCHES YET</p><h2>Play a match with the tracker running on your PC.</h2><p>When the After Action Report appears, the tracker reads your result, mode, map, score, kills, assists, deaths and top weapon, and saves them here. Nothing is uploaded unless you turn on Sync devices.</p><button class="primary" id="stats-start-tracker">Open the tracker</button> ${add}</div>`;$('#stats-start-tracker').onclick=()=>$('#automation').click();return;}
+  if(!state.matches.length){$('#content').innerHTML=`<div class="empty"><p class="eyebrow">NO MATCHES YET</p><h2>Play a match with the tracker running on your PC.</h2><p>When the After Action Report appears, the tracker reads your result, mode, map, score, kills, assists, deaths and top weapon, and saves them here. Nothing is uploaded unless you turn on Sync devices.</p><button class="primary" id="stats-start-tracker">Open the tracker</button> ${add}</div>`;$('#stats-start-tracker').onclick=()=>$('#automation').click();$('#content').insertAdjacentHTML('afterbegin',renderLifetime());return;}
   const s=summarise(list),date=iso=>new Date(iso).toLocaleString([], {dateStyle:'medium',timeStyle:'short'});
-  $('#content').innerHTML=`<div class="arsenal-totals stats-totals"><div><strong>${s.n}</strong><span>Matches</span></div><div><strong>${s.winRate}<small>%</small></strong><span>Win rate · ${s.wins} won</span></div><div><strong>${s.kd}</strong><span>K/D · ${s.kills} kills, ${s.deaths} deaths</span></div><div><strong>${s.avgKills}</strong><span>Kills per match · ${s.avgScore} avg score</span></div></div>
+  $('#content').innerHTML=`${renderLifetime()}${sessionTotals()}<div class="arsenal-totals stats-totals"><div><strong>${s.n}</strong><span>Matches</span></div><div><strong>${s.winRate}<small>%</small></strong><span>Win rate · ${s.wins} won</span></div><div><strong>${s.kd}</strong><span>K/D · ${s.kills} kills, ${s.deaths} deaths</span></div><div><strong>${s.avgKills}</strong><span>Kills per match · ${s.avgScore} avg score</span></div></div>
   <div class="stats-grid">${breakdown('By mode','mode',list)}${breakdown('By map','map',list)}${breakdown('By weapon','weapon',list)}</div>
   <section class="stats-panel"><div class="stats-heading"><h2>Match history</h2>${add}</div><div class="stats-scroll"><table class="stats-table history"><thead><tr><th scope="col">When</th><th scope="col">Result</th><th scope="col">Mode</th><th scope="col">Map</th><th scope="col">Kills</th><th scope="col">Deaths</th><th scope="col">Assists</th><th scope="col">Score</th><th scope="col">Top weapon</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead><tbody>${list.map(m=>`<tr><td>${esc(date(m.at))}${m.source==='manual'?' <small>(typed)</small>':''}</td><td class="result-${esc(m.result.toLowerCase())}">${esc(m.result)}</td><td>${esc(m.mode||'—')}</td><td>${esc(m.map||'—')}</td><td>${m.kills}</td><td>${m.deaths}</td><td>${m.assists}</td><td>${m.score}</td><td>${esc(m.weapon||'—')}</td><td><button class="link-button" data-delete-match="${esc(m.id)}" aria-label="Remove the ${esc(m.result)} match from ${esc(date(m.at))}">Remove</button></td></tr>`).join('')}</tbody></table></div></section>`;
 }
@@ -251,6 +290,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('button')
  if(b.classList.contains('close-dialog')){b.closest('dialog').close();return;}
  if(d.view){view=d.view;$('#search').value='';render();}
  if(d.addMatch)addMatchForm();
+ if(d.editLifetime)lifetimeForm();
  if(d.queuePlan)queuePlan(d.queuePlan);
  if(d.planMore){planOffset+=3;render();}
  if(d.planFocus){arsenalOrder=d.planFocus;planOffset=0;try{localStorage.setItem('mw4.arsenalOrder',arsenalOrder);}catch{}render();}

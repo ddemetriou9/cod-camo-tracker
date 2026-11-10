@@ -7,11 +7,11 @@
 (function(root){
  'use strict';
  const V=root.CamoVocab;
- const BUILD='2026-11-10-v2-16';
+ const BUILD='2026-11-11-v2-17';
  const STRIP=[0,0,.5,.2];// where both screen headings live, with room for other UI scales and ultrawide pillarboxing
  const REWARD_BAND=[.08,.6,.84,.15];// strip holding the card labels and type lines (fraction of frame), wide enough for side-by-side cards; kept short because every read scans it
  const STILL=.006,FRESH=.01,CALM=.05,PIXEL=32,RESULTS_LIMITS={still:.04,fresh:.02},RESULTS_READ_MS=150,RESULTS_CONFIRM_MS=3000,RESULTS_CHANGE=.2;// a new card or weapon changes far more than particles// live menus animate (glowing selected tile), so 'still' tolerates a little motion
- const SAMPLE_MS={none:500,menu:500,results:150,aar:500};
+ const SAMPLE_MS={none:500,menu:500,results:150,aar:500,record:500};
  const FORCE_MS=4000,STRIP_LIMITS={still:.03,fresh:.02};// read anyway if an area keeps moving slightly (animated backgrounds) for this long
  const MENU_WHITELIST='ACDEILMNOPRSTY0123456789/ ',DIGITS=/\d/;
 
@@ -292,7 +292,7 @@
   }catch{let t;return {kind:'page',after(ms,f){clearTimeout(t);t=setTimeout(f,ms);},stop(){clearTimeout(t);}};}
  }
 
- function create({catalog,onReward,onOverview=()=>{},onExact=()=>'already-recorded',onHint=()=>{},onMatch=()=>'ignored',onStatus}){
+ function create({catalog,onReward,onOverview=()=>{},onExact=()=>'already-recorded',onHint=()=>{},onMatch=()=>'ignored',onRecord=()=>'ignored',onStatus}){
   let generation=0,stream=null,video=null,ocr=null,ocrStarting=null,ticker=null,busy=false;
   let screen=null,strip=null,area=null,pending=null,manual=false,resultsUntil=0;
   const status={build:BUILD,engine:'v2',phase:'stopped',message:'Ready when you are.',running:false,checks:0,reads:0,lastReadMs:0,ocrBusyMs:0,prepMs:0,segmentMs:0,tickMs:0,source:'',ocrLoaded:false,captureFPS:4,width:0,height:0,frames:0,lastReading:'No OCR reading yet.',lastScreenScan:'No screen scan yet.',layout:'searching',confirmed:0,saved:0};
@@ -375,6 +375,9 @@
    if(anchor.screen==='menu'){
     // Weapon heading and category totals sit in a column under the title.
     screen.regions={column:clampRegion([x0-u*2,y0+u*.8,Math.max(u*16,W*.2),H*.85-y0],W,H)};
+   }else if(anchor.screen==='record'){
+    // The layout is not assumed, so the whole page under the title is read once it settles.
+    screen.regions={summary:clampRegion([Math.max(0,x0-u*2),y0+u,W*.92,H*.9-y0],W,H)};
    }else if(anchor.screen==='aar'){
     // Measured on 1080p (title text 34 px): result, mode and map, then the four stats down to about 16 title-heights
     // below; the top-performing weapon is in the right-hand panel, about 9 title-heights down.
@@ -387,7 +390,7 @@
    area=watch();pending=null;
    status.layout=anchor.screen+' heading at '+Math.round(x0)+','+Math.round(y0)+' (text '+Math.round(u)+' px)';
    note('screen',{action:'enter',kind:anchor.screen,heading:anchor.line.text.slice(0,60),x:Math.round(x0),y:Math.round(y0),u:Math.round(u)});
-   report('reading',{menu:'Camo menu found. Reading the weapon and category totals…',aar:'After Action Report found. Reading your match stats…'}[anchor.screen]||'After-match results found. Reading each weapon card…');
+   report('reading',{menu:'Camo menu found. Reading the weapon and category totals…',aar:'After Action Report found. Reading your match stats…',record:'Combat Record found. Reading your lifetime stats…'}[anchor.screen]||'After-match results found. Reading each weapon card…');
   }
   function stillOnScreen(){
    const delta=changed(thumb(video,screen.headingRegion),screen.heading);
@@ -583,6 +586,26 @@
    report('watching',m.result+' — '+m.kills+' kills, '+m.deaths+' deaths'+(result==='duplicate'?' (already recorded).':'. Saved to Stats.'));
   }
 
+  /* Combat Record: read twice, and saved only when both reads agree and the numbers check out against each other. */
+  async function readRecordOnce(run){
+   const lines=await readArea(run,'record',screen.regions.summary,{limit:40});if(!lines)return null;
+   for(const line of lines)if(V.isValue(line.text)){const t=line.text.trim().replace(/\s+/g,'');line.text=/[DHMS:]/i.test(t)?line.text.trim():slashedZeros(video,line.frame,t);}
+   status.lastReading='Combat Record: '+lines.map(l=>l.text).join(' / ').slice(0,1500);
+   return V.decodeRecord(lines);
+  }
+  async function readRecord(run){
+   if(screen.done)return;
+   screen.attempts++;manual=false;area.read=area.prev;area.readAt=now();
+   const giveUp=why=>{if(screen.attempts>=4){screen.done=true;report('watching','Could not confirm this Combat Record ('+why+') Lifetime stats were not changed.');}};
+   const first=await readRecordOnce(run);if(!first)return;
+   if(!first.record){reject('record',first.issue,[]);report('watching','Combat Record visible. '+first.issue+' Trying again.');giveUp(first.issue);return;}
+   report('confirming','Lifetime stats read. Confirming…');
+   const second=await readRecordOnce(run);if(!second)return;
+   if(JSON.stringify(first.record)!==JSON.stringify(second.record)){note('record-mismatch',{first:first.record,second:second.record});giveUp('two reads differed.');return;}
+   screen.done=true;const result=onRecord(first.record);note('apply',{mode:'record',record:first.record,result});
+   report('watching',result==='unchanged'?'Lifetime stats are already up to date.':'Lifetime stats saved to Stats.');
+  }
+
   /* ---- loop ---- */
   async function tick(run){
    if(run!==generation||!status.running)return;
@@ -606,11 +629,11 @@
     if(!stillOnScreen()){report('watching','Screen closed. Watching for the next camo menu or results.');return;}
     delay=SAMPLE_MS[screen.kind];
     let view,o,limits={still:STILL,fresh:FRESH};
-    if(screen.kind==='aar'){
+    if(screen.kind==='aar'||screen.kind==='record'){
      if(screen.done)return;
      // The background drifts, so wait for the numbers to finish counting up rather than for a perfectly still frame.
      o=observe(area,thumb(video,screen.regions.summary),RESULTS_LIMITS);
-     if(manual||o.settled||now()-screen.since>3000)await readAar(run,W,H);
+     if(manual||o.settled||now()-screen.since>3000)await (screen.kind==='record'?readRecord(run):readAar(run,W,H));
      return;
     }
     if(screen.kind==='menu'){view=thumb(video,screen.regions.column);o=observe(area,view,limits);}

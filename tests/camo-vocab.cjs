@@ -114,6 +114,22 @@ for(const w of catalog.weapons){
 if(failures.length){console.log(failures.length+' sweep failures:\n'+failures.slice(0,60).join('\n'));process.exitCode=1;}
 else console.log('camo-vocab: sweep over all '+catalog.weapons.length+' weapons passed');
 
+// Combat Record: not tied to one layout, and a number that disagrees with the printed K/D is refused.
+{
+ const L=(text,frame)=>({text,frame,confidence:90}),h=20;
+ const grid=(place)=>[['KILLS','12,480'],['DEATHS','9,600'],['K/D RATIO','1.30'],['WINS','900'],['LOSSES','450'],['W/L RATIO','2.00'],['TIME PLAYED','12D 6H 30M'],['BEST STREAK','17'],['SCORE PER MINUTE','412']].flatMap(([label,value],i)=>{const x=100+(i%3)*400,y=200+Math.floor(i/3)*160;return [L(label,[x,y,x+150,y+h]),L(value,place(x,y))];});
+ const want={kills:12480,deaths:9600,wins:900,losses:450,bestStreak:17,spm:412,hours:294.5};
+ assert.deepEqual(V.decodeRecord(grid((x,y)=>[x+20,y-50,x+120,y-10])).record,want,'numbers above labels');
+ assert.deepEqual(V.decodeRecord(grid((x,y)=>[x+20,y+30,x+120,y+70])).record,want,'numbers below labels');
+ assert.deepEqual(V.decodeRecord(grid((x,y)=>[x+170,y,x+300,y+h])).record,want,'numbers beside labels');
+ assert.deepEqual(V.decodeRecord([L('Kills 12,480',[0,0,200,20]),L('Deaths 9,600',[0,40,200,60]),L('K/D Ratio 1.30',[0,80,200,100])]).record,{kills:12480,deaths:9600,wins:null,losses:null,bestStreak:null,spm:null,hours:null},'label and number in one box');
+ // A slashed zero read as 8 in a leading digit no longer divides to the printed K/D, so nothing is saved.
+ assert.equal(V.decodeRecord([L('KILLS',[100,100,200,120]),L('12,880',[100,60,200,90]),L('DEATHS',[400,100,500,120]),L('9,600',[400,60,500,90]),L('K/D RATIO',[700,100,800,120]),L('1.30',[700,60,800,90])]).record,null);
+ assert.equal(V.decodeRecord([L('SOMETHING ELSE',[0,0,100,20])]).record,null);
+ assert.equal(V.anchorIn([L('COMBAT RECORD',[88,52,424,86])]).screen,'record');
+ console.log('camo-vocab: Combat Record cases passed');
+}
+
 // After Action Report: the two real readings (end-of-match clips), including OCR noise around the result and mode.
 {
  const L=(text,frame,confidence=90)=>({text,frame,confidence});

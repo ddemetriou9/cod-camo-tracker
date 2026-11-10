@@ -43,7 +43,7 @@
   if(second&&second.cost<first.cost+margin&&label(second.candidate)!==label(first.candidate))return null;
   return first;
  }
- const ANCHORS={menu:'CAMO SELECT',results:'TOP PERFORMING WEAPONS',aar:'AFTER ACTION REPORT'};
+ const ANCHORS={menu:'CAMO SELECT',results:'TOP PERFORMING WEAPONS',aar:'AFTER ACTION REPORT',record:'COMBAT RECORD'};
  function anchorIn(lines){
   for(const line of lines)for(const [screen,text] of Object.entries(ANCHORS)){const hit=locate(line.text,text);if(hit&&hit.cost<=allowance(text))return {screen,line,cost:hit.cost};}
   return null;
@@ -191,6 +191,74 @@
   const weapon=weaponLines.length?rewardWeapon(weaponLines,catalog)?.weapon.name||null:null;
   return {match:{result:title(result.hit.candidate),mode,map,...stats,weapon}};
  }
- const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,menuTab,statLabels,decodeAar,ANCHORS,TARGETS,MODES};
+
+ /* ---- Combat Record (lifetime stats) ---- */
+ const RECORD_FIELDS={kills:['KILLS'],deaths:['DEATHS'],kd:['K/D RATIO','KD RATIO','K/D','KD'],wins:['WINS'],losses:['LOSSES'],wl:['W/L RATIO','WL RATIO','W/L','WL'],spm:['SCORE PER MINUTE','SCORE/MIN','SPM'],time:['TIME PLAYED'],streak:['BEST STREAK','BEST KILLSTREAK','LONGEST STREAK','HIGHEST STREAK']};
+ const compact=text=>clean(text).replace(/ /g,'');
+ function recordField(text){
+  const c=compact(text);if(!c)return null;
+  for(const [field,names] of Object.entries(RECORD_FIELDS))for(const name of names){
+   const p=compact(name);
+   if(c===p||(p.length>=5&&c.length<=p.length+3&&locate(c,p)?.cost<=allowance(p)))return field;
+  }
+  return null;
+ }
+ const VALUE=/^\d[\d,.:]*(\s*\d*\s*[DHMS]?)*$/i;
+ const isValue=text=>VALUE.test(String(text||'').trim());
+ function hoursOf(text){
+  const t=String(text).toUpperCase(),clock=/^(\d+):(\d{2})(?::\d{2})?$/.exec(t.trim());
+  if(clock)return Number(clock[1])+Number(clock[2])/60;
+  const part=u=>Number((new RegExp('(\\d+)\\s*'+u)).exec(t)?.[1]||0),has=/\d\s*[DHM]/.test(t);
+  return has?part('D')*24+part('H')+part('M')/60:null;
+ }
+ const whole=text=>{const t=String(text).replace(/[,.\s]/g,'');return /^\d{1,10}$/.test(t)?Number(t):null;};
+ const decimal=text=>{const t=String(text).replace(/,/g,'.').trim();return /^\d+(\.\d+)?$/.test(t)?Number(t):null;};
+ // The screen's layout is not assumed: each direction is tried, and only one whose numbers agree with each other counts.
+ function pairUp(labels,values,direction){
+  const used=new Set(),out={};
+  for(const {field,line} of labels){
+   const [x0,y0,x1,y1]=line.frame,h=y1-y0,cx=(x0+x1)/2;let best=null,bestGap=Infinity;
+   for(const v of values){
+    if(used.has(v))continue;const [a,b,c,d]=v.frame,mid=(a+c)/2,same=Math.abs(mid-cx)<=Math.max(c-a,x1-x0)*.7+h;let gap=null;
+    if(direction==='above'&&same&&d<=y0+h*.3&&y0-d<=h*3.5)gap=y0-d;
+    if(direction==='below'&&same&&b>=y1-h*.3&&b-y1<=h*3.5)gap=b-y1;
+    if(direction==='right'&&Math.abs((b+d)/2-(y0+y1)/2)<=h&&a>=x1-h&&a-x1<=h*25)gap=a-x1;
+    if(gap!=null&&gap<bestGap){best=v;bestGap=gap;}
+   }
+   if(best){used.add(best);out[field]=best.text;}
+  }
+  return out;
+ }
+ function recordFrom(raw){
+  const record={kills:whole(raw.kills),deaths:whole(raw.deaths),wins:whole(raw.wins),losses:whole(raw.losses),bestStreak:whole(raw.streak),spm:decimal(raw.spm),hours:raw.time?hoursOf(raw.time):null};
+  const kd=decimal(raw.kd),wl=decimal(raw.wl);
+  if(record.kills==null||record.deaths==null||kd==null)return null;
+  // The game prints two decimals, so a correct read lands within half a hundredth.
+  if(Math.abs((record.deaths?record.kills/record.deaths:record.kills)-kd)>.0055)return null;
+  if(record.wins!=null&&record.losses!=null&&wl!=null&&Math.abs((record.losses?record.wins/record.losses:record.wins)-wl)>.0055)return null;
+  return record;
+ }
+ /* Lifetime stats are saved only when kills, deaths and the K/D printed beside them agree, so a misread that moves the
+    ratio (a wrong leading digit, a digit lost to the background) is refused. A wrong last digit barely moves it, so the
+    slashed-zero shape check in the engine has to catch those. */
+ function decodeRecord(lines){
+  const labels=[],values=[],inline={};
+  for(const line of lines){
+   const text=String(line.text||'').trim(),split=/^([A-Za-z/ ]+?)[\s:]+(\d[\d,.:]*(?:\s*\d*\s*[DHMS])*)$/.exec(text);
+   const field=recordField(text);
+   if(split&&recordField(split[1]))inline[recordField(split[1])]=split[2];
+   else if(field)labels.push({field,line});
+   else if(isValue(text))values.push(line);
+  }
+  if(!labels.length&&!Object.keys(inline).length)return {record:null,issue:'No stat labels found.'};
+  let found=null;
+  const size=r=>Object.values(r).filter(v=>v!=null).length;
+  for(const direction of ['above','below','right']){
+   const record=recordFrom({...pairUp(labels,values,direction),...inline});
+   if(record&&(!found||size(record)>size(found)))found=record;
+  }
+  return found?{record:found}:{record:null,issue:'Kills, deaths and K/D did not agree.'};
+ }
+ const api={clean,locate,best,anchorIn,counter,categoryIn,decodeMenu,decodeReward,menuWeapon,menuTab,statLabels,decodeAar,decodeRecord,isValue,ANCHORS,TARGETS,MODES};
  if(typeof module==='object'&&module.exports)module.exports=api;else root.CamoVocab=api;
 })(typeof window==='object'?window:globalThis);

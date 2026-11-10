@@ -40,9 +40,9 @@ async function owner(request, env) {
   if (!row) throw new HttpError(404, 'No progress uses that sync code.');
   return row;
 }
-// Friends see camo progress and match stats; goals and their notes stay private.
+// Friends see camo progress, match and lifetime stats; goals and their notes stay private.
 function publicView(data) {
-  return {version: 3, checks: data.checks || {}, categoryTotals: data.categoryTotals || {}, matches: data.matches || [], goals: [], mode: data.mode};
+  return {version: 3, checks: data.checks || {}, categoryTotals: data.categoryTotals || {}, matches: data.matches || [], lifetime: data.lifetime || null, goals: [], mode: data.mode};
 }
 
 async function route(request, env) {
